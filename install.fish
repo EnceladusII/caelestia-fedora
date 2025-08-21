@@ -446,12 +446,9 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l cflags_aub  (sanitize $cflags_aub)
     set -l libs_aub    (sanitize $libs_aub)
 
-    # --- Garde-fous PipeWire ---
+    # --- Garde-fous PipeWire (NE PAS forcer -lspa-0.2) ---
     if test (count $libs_pipe) -eq 0; or not contains -- -lpipewire-0.3 $libs_pipe
         set libs_pipe $libs_pipe -lpipewire-0.3
-    end
-    if not contains -- -lspa-0.2 $libs_pipe
-        set libs_pipe $libs_pipe -lspa-0.2
     end
 
     # --- Includes additionnels si besoin ---
@@ -489,19 +486,25 @@ function shell_install --description 'Install Caelestia shell into XDG config an
 
     # --- Compilation ---
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
+
+    # Trace utile
+    echo "[diag] argv (1 par ligne):"
+    for a in g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
+        printf "  %s\n" $a
+    end
+
     g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
     or begin
         echo (set_color red)"ERROR: compilation/édition de liens échouée"(set_color normal)
         echo "Diag libs:"
-        echo "  pipewire: "(string join ' ' $libs_pipe)
-        echo "  aubio   : "(string join ' ' $libs_aub)
+        echo "  pipewire: "(string join ' ' -- $libs_pipe)
+        echo "  aubio   : "(string join ' ' -- $libs_aub)
         return 1
     end
 
     echo (set_color green)"OK:"(set_color normal)" binaire -> $out"
     echo "Tu peux le déplacer vers /usr/lib/caelestia/beat_detector (emplacement par défaut)."
 end
-
 
 cli_install
 log 'Caelestia CLI is Installed'
