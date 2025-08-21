@@ -158,7 +158,7 @@ function starship_install
 end
 
 function quickshell_install
-    sudo dnf $noconfirm copr enable errorinternet/quickshell
+    sudo dnf $noconfirm copr enable errornointernet/quickshell
     sudo dnf $noconfirm install quickshell-git
 end
 
