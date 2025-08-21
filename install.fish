@@ -428,13 +428,54 @@ function cli_install --description 'Build & install caelestia-cli from source'
     echo "Try: caelestia --help"
 end
 
-function shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
-    # --- Dépendances build & runtime ---
-    set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel aubio libsndfile-devel fftw-devel
-    echo (set_color green)"==> Installing build dependencies"(set_color normal)
-    sudo dnf install -y $pkgs; or return 1
+function shell_install --description 'Install Caelestia shell and build/install beat_detector'
+    # Usage:
+    #   shell_install [--prefix /usr/local] [--install] [--update-only] [--no-deps] [--verbose]
+    # Defaults:
+    #   prefix: /usr/local
+    #   Without --install, binary stays in a temp build dir and path is printed.
 
-    # --- Répertoires ---
+    set -l prefix "/usr/local"
+    set -l do_install 0
+    set -l update_only 0
+    set -l no_deps 0
+    set -l verbose 0
+
+    for arg in $argv
+        switch $arg
+            case --prefix=*
+                set prefix (string replace -r '^--prefix=' '' -- $arg)
+            case --prefix
+                # next token is the value
+                continue
+            case --install
+                set do_install 1
+            case --update-only
+                set update_only 1
+            case --no-deps
+                set no_deps 1
+            case --verbose -v
+                set verbose 1
+            case '*'
+                if test -n "$last_arg_is_prefix"
+                    set prefix $arg
+                    set -e last_arg_is_prefix
+                else if test $arg = --prefix
+                    set last_arg_is_prefix 1
+                else
+                    echo (set_color yellow)"[warn] Unknown argument: $arg"(set_color normal)
+                end
+        end
+    end
+
+    # --- Build & runtime dependencies (Fedora/RHEL-like) ---
+    if test $no_deps -eq 0
+        set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel libsndfile-devel fftw-devel
+        echo (set_color green)"==> Installing build dependencies"(set_color normal)
+        sudo dnf install -y $pkgs; or return 1
+    end
+
+    # --- XDG directories ---
     set -l xdg_conf $XDG_CONFIG_HOME
     if test -z "$xdg_conf"
         set xdg_conf "$HOME/.config"
@@ -443,23 +484,26 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l dest_cfg "$qsh_dir/caelestia"
     mkdir -p $qsh_dir; or return 1
 
-    # --- Clonage / mise à jour ---
+    # --- Clone / update repo ---
     if test -d "$dest_cfg/.git"
         echo (set_color green)"==> Updating Caelestia shell in $dest_cfg"(set_color normal)
         git -C $dest_cfg pull --ff-only; or return 1
+    else if test $update_only -eq 1
+        echo (set_color red)"ERROR: --update-only set but $dest_cfg is not a git repo."(set_color normal)
+        return 1
     else
         echo (set_color green)"==> Cloning Caelestia shell to $dest_cfg"(set_color normal)
         git clone --depth=1 https://github.com/caelestia-dots/shell.git $dest_cfg; or return 1
     end
 
-    # --- Compilation du beat detector ---
+    # --- Source file check ---
     set -l src "$dest_cfg/assets/beat_detector.cpp"
     if not test -f "$src"
-        echo (set_color red)"ERROR: beat_detector.cpp introuvable: $src"(set_color normal)
+        echo (set_color red)"ERROR: beat_detector.cpp not found: $src"(set_color normal)
         return 1
     end
 
-    # Sélection du module PipeWire
+    # --- Select PipeWire module name ---
     set -l pw_mod libpipewire-0.3
     if not pkg-config --exists $pw_mod
         if pkg-config --exists pipewire-0.3
@@ -467,13 +511,24 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         end
     end
 
-    # --- Flags via pkg-config (trim + split -n = pas d’éléments vides) ---
-    set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod | string trim | string split -n ' ')
-    set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod | string trim | string split -n ' ')
-    set -l cflags_aub  (pkg-config --silence-errors --cflags aubio   | string trim | string split -n ' ')
-    set -l libs_aub    (pkg-config --silence-errors --libs   aubio   | string trim | string split -n ' ')
+    # --- Verify pkg-config availability ---
+    if not pkg-config --exists $pw_mod
+        echo (set_color red)"ERROR: PipeWire dev package not found via pkg-config ($pw_mod)."(set_color normal)
+        echo "Hint: sudo dnf install pipewire-devel"
+        return 1
+    end
+    if not pkg-config --exists aubio
+        echo (set_color red)"ERROR: aubio dev package not found via pkg-config (aubio)."(set_color normal)
+        echo "Hint: sudo dnf install aubio-devel"
+        return 1
+    end
 
-    # --- Sanitization correcte (supprime tokens vides et '-l' orphelin) ---
+    # --- Collect flags (trim and split safely) ---
+    set -l cflags_pipe (pkg-config --cflags $pw_mod | string trim | string split -n ' ')
+    set -l libs_pipe   (pkg-config --libs   $pw_mod | string trim | string split -n ' ')
+    set -l cflags_aub  (pkg-config --cflags aubio   | string trim | string split -n ' ')
+    set -l libs_aub    (pkg-config --libs   aubio   | string trim | string split -n ' ')
+
     function sanitize
         for x in $argv
             if test -n "$x"; and test "$x" != "-l"
@@ -486,27 +541,18 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l cflags_aub  (sanitize $cflags_aub)
     set -l libs_aub    (sanitize $libs_aub)
 
-    # --- Garde-fous PipeWire (NE PAS forcer -lspa-0.2) ---
+    # Ensure we actually link to pipewire
     if test (count $libs_pipe) -eq 0; or not contains -- -lpipewire-0.3 $libs_pipe
         set libs_pipe $libs_pipe -lpipewire-0.3
     end
 
-    # --- Includes additionnels si besoin ---
+    # Extra includes for SPA if the distro doesn't expose them via pkg-config
     set -l incs
-    if test -f /usr/include/pipewire-0.3/pipewire/pipewire.h
-        set incs $incs -I/usr/include/pipewire-0.3
-    else if test -f /usr/include/pipewire/pipewire.h
-        set incs $incs -I/usr/include
-    end
     if test -d /usr/include/spa-0.2
         set incs $incs -I/usr/include/spa-0.2
     end
-    if test (count $incs) -eq 0
-        echo (set_color red)"ERROR: Impossible de localiser pipewire/pipewire.h."(set_color normal)
-        return 1
-    end
 
-    # --- Garde-fous aubio (+ deps usuelles) ---
+    # aubio typical extras (some distros put these in aubio.pc; keep guards)
     if not contains -- -laubio $libs_aub
         set libs_aub $libs_aub -laubio
     end
@@ -520,30 +566,51 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         set libs_aub $libs_aub -lm
     end
 
-    # --- Dossier de build ---
+    # --- Build dir & cleanup trap ---
     set -l builddir (mktemp -d ~/.cache/caelestia-bd.XXXXXX)
     set -l out "$builddir/beat_detector"
-
-    # --- Compilation ---
-    echo (set_color green)"==> Compiling beat_detector"(set_color normal)
-
-    # Trace utile
-    echo "[diag] argv (1 par ligne):"
-    for a in g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
-        printf "  %s\n" $a
+    function __bd_cleanup --on-event fish_exit
+        if test -d "$builddir"
+            rm -rf "$builddir"
+        end
     end
 
-    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
+    # --- Compile ---
+    set -l common_cxx "-std=c++17 -Wall -Wextra -Wpedantic -O2 -pipe -fno-plt"
+    echo (set_color green)"==> Compiling beat_detector"(set_color normal)
+
+    if test $verbose -eq 1
+        echo "[diag] argv (1 per line):"
+        for a in g++ $common_cxx $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
+            printf "  %s\n" $a
+        end
+    end
+
+    g++ $common_cxx $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
     or begin
-        echo (set_color red)"ERROR: compilation/édition de liens échouée"(set_color normal)
+        echo (set_color red)"ERROR: compile/link failed"(set_color normal)
         echo "Diag libs:"
         echo "  pipewire: "(string join ' ' -- $libs_pipe)
         echo "  aubio   : "(string join ' ' -- $libs_aub)
         return 1
     end
 
-    echo (set_color green)"OK:"(set_color normal)" binaire -> $out"
-    echo "Tu peux le déplacer vers /usr/lib/caelestia/beat_detector (emplacement par défaut)."
+    echo (set_color green)"OK:"(set_color normal)" built -> $out"
+
+    # --- Optional install ---
+    if test $do_install -eq 1
+        set -l target "$prefix/lib/caelestia/beat_detector"
+        echo (set_color green)"==> Installing to $target"(set_color normal)
+        if test (id -u) -ne 0
+            sudo install -D -m 0755 "$out" "$target"; or return 1
+        else
+            install -D -m 0755 "$out" "$target"; or return 1
+        end
+        echo (set_color green)"Installed:"(set_color normal)" $target"
+    else
+        echo "You can install it with:"
+        echo "  sudo install -D -m 0755 $out $prefix/lib/caelestia/beat_detector"
+    end
 end
 
 cli_install
