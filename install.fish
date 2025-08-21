@@ -428,10 +428,20 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     end
 
     # Récupère flags et les SPLIT en listes (évite '' et les gros arguments uniques)
+    # Récupère et nettoie (trim + split -n = pas d’éléments vides)
     set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod | string trim | string split -n ' ')
     set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod | string trim | string split -n ' ')
     set -l cflags_aub  (pkg-config --silence-errors --cflags aubio   | string trim | string split -n ' ')
     set -l libs_aub    (pkg-config --silence-errors --libs   aubio   | string trim | string split -n ' ')
+
+    # Garde-fou: si rien pour pipewire, force la lib
+    if test (count $libs_pipe) -eq 0; or not contains -- -lpipewire-0.3 $libs_pipe
+        set libs_pipe $libs_pipe -lpipewire-0.3
+    end
+    # (optionnel) certains environnements nécessitent aussi -lspa-0.2 ; ajoute-le si manquant
+    if not contains -- -lspa-0.2 $libs_pipe
+        set libs_pipe $libs_pipe -lspa-0.2
+    end
 
     # Fallbacks si pkg-config renvoie vide
     if test (count $libs_pipe) -eq 0
@@ -487,14 +497,14 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l builddir (mktemp -d ~/.cache/caelestia-bd.XXXXXX)
     set -l out "$builddir/beat_detector"
 
-    echo (set_color green)"==> Compiling beat_detector"(set_color normal)
     # Compose l’invocation en LISTE (pas de quotes globales)
-    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs
+    echo (set_color green)"==> Compiling beat_detector"(set_color normal)
+    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
     or begin
         echo (set_color red)"ERROR: compilation/édition de liens échouée"(set_color normal)
-        echo "Vérifie :"
-        echo "  pkg-config --libs aubio        # doit contenir -laubio -lsndfile -lfftw3f -lm"
-        echo "  ldconfig -p | grep -E 'aubio|sndfile|fftw3f'"
+        echo "Diag libs:"
+        echo "  pipewire: "(string join ' ' $libs_pipe)
+        echo "  aubio   : "(string join ' ' $libs_aub)
         return 1
     end
 
