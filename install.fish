@@ -388,7 +388,8 @@ end
 
 function shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
     # --- Dépendances build & runtime ---
-    set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel
+    # aubio-libs = lib runtime (assurée), pipewire-libs est tiré par pipewire-devel
+    set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel aubio-libs
     echo (set_color green)"==> Installing build dependencies"(set_color normal)
     sudo dnf install -y $pkgs; or return 1
 
@@ -417,7 +418,7 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         return 1
     end
 
-    # Tente d'abord libpipewire-0.3, puis pipewire-0.3 en secours
+    # Choix du module PipeWire via pkg-config
     set -l pw_mod libpipewire-0.3
     if not pkg-config --exists $pw_mod
         if pkg-config --exists pipewire-0.3
@@ -431,15 +432,15 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l cflags_aub  (pkg-config --silence-errors --cflags aubio)
     set -l libs_aub    (pkg-config --silence-errors --libs   aubio)
 
-    # Fallbacks défensifs
+    # Fallbacks défensifs si pkg-config est muet
     if test -z "$libs_pipe"
-        set libs_pipe "-lpipewire-0.3"
+        set libs_pipe -lpipewire-0.3
     end
     if test -z "$libs_aub"
-        set libs_aub "-laubio"
+        set libs_aub -laubio
     end
 
-    # Détection des includes en LISTES (un élément par -I)
+    # Détection des includes en LISTE (un -I = un élément)
     set -l incs
     if test -f /usr/include/pipewire-0.3/pipewire/pipewire.h
         set incs $incs -I/usr/include/pipewire-0.3
@@ -454,14 +455,28 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         return 1
     end
 
-    # Affiche les flags pour diagnostiquer
-    echo (set_color cyan)"[diag] Using PipeWire module: $pw_mod"(set_color normal)
-    echo (set_color cyan)"[diag] CFLAGS pipewire: $cflags_pipe"(set_color normal)
-    echo (set_color cyan)"[diag] CFLAGS aubio   : $cflags_aub"(set_color normal)
-    echo (set_color cyan)"[diag] INCLUDES      : $incs"(set_color normal)
-    echo (set_color cyan)"[diag] LIBS pipewire : $libs_pipe"(set_color normal)
-    echo (set_color cyan)"[diag] LIBS aubio    : $libs_aub"(set_color normal)
+    # --- Nettoyage des tokens vides / ':' potentiellement émis par pkg-config ---
+    function __clean_tokens --argument-names toks --inherit-variable toks
+        set -l out
+        for t in $toks
+            if test -n "$t"
+                if test "$t" != ":"
+                    set out $out $t
+                end
+            end
+        end
+        echo $out
+    end
+    set -l libs_clean (__clean_tokens $libs_pipe $libs_aub)
+    set -l cflags_clean (__clean_tokens $cflags_pipe $cflags_aub)
 
+    # Diag
+    echo (set_color cyan)"[diag] Using PipeWire module: $pw_mod"(set_color normal)
+    echo (set_color cyan)"[diag] CFLAGS clean : $cflags_clean"(set_color normal)
+    echo (set_color cyan)"[diag] INCLUDES     : $incs"(set_color normal)
+    echo (set_color cyan)"[diag] LIBS clean   : $libs_clean"(set_color normal)
+
+    # --- Build en LISTE d’arguments sûre ---
     set -l build_root $XDG_CACHE_HOME
     if test -z "$build_root"
         set build_root "$HOME/.cache"
@@ -470,12 +485,20 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l workdir (mktemp -d "$build_root/caelestia-bd.XXXXXX"); or return 1
     set -l out "$workdir/beat_detector"
 
+    set -l cmd g++ -std=c++17 -Wall -Wextra
+    set cmd $cmd $cflags_clean $incs $src -o $out $libs_clean
+
+    echo (set_color yellow)"[diag] argv (1 par ligne):"(set_color normal)
+    for a in $cmd
+        echo "  "(string escape -- $a)
+    end
+
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
-    echo (set_color yellow)"[diag] g++ cmd: g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub"(set_color normal)
-    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub; or begin
-        echo (set_color red)"ERROR: compilation échouée"(set_color normal)
-        echo "Astuce: vérifie la présence du header:"
-        echo "  ls -l /usr/include/pipewire-0.3/pipewire/pipewire.h"
+    $cmd; or begin
+        echo (set_color red)"ERROR: compilation/édition de liens échouée"(set_color normal)
+        echo "Astuce:"
+        echo "  - Vérifie que libpipewire-0.3.so* et libaubio.so* existent (ldconfig -p | grep -E 'pipewire|aubio')"
+        echo "  - Si un token ':' apparaît dans les LIBS, c'est un bug pkg-config: la fonction le filtre déjà, sinon dis-le moi."
         return 1
     end
 
