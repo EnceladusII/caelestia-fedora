@@ -169,9 +169,9 @@ end
 function material_symbols_install --description 'Install Google Material Symbols fonts for current user'
    mkdir -p ~/.local/share/font
 
-   wget -O ~/.local/share/font/MaterialSymbolsRounded.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
-   wget -O ~/.local/share/font/MaterialSymbolsOutlined.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsOutlined%5BFILL,GRAD,opsz,wght%5D.ttf"
-   wget -O ~/.local/share/font/MaterialSymbolsSharp.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsSharp%5BFILL,GRAD,opsz,wght%5D.ttf"
+   wget -O ~/.local/share/font/MaterialYou/MaterialSymbolsRounded.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
+   wget -O ~/.local/share/font/MateriaYou/MaterialSymbolsOutlined.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsOutlined%5BFILL,GRAD,opsz,wght%5D.ttf"
+   wget -O ~/.local/share/font/MaterialYou/MaterialSymbolsSharp.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsSharp%5BFILL,GRAD,opsz,wght%5D.ttf"
 end
 
 function fonts_install
