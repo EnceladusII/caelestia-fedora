@@ -142,7 +142,7 @@ end
 
 function ensure_tools
     # Base tools
-    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard ffmpeg-devel libavutil-free slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo
+    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard ffmpeg-devel libavutil-free libavutil-devel slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo
 end
 
 function dnf_install
@@ -191,11 +191,11 @@ function app2unit_install
     sudo dnf install xdg-terminal-exec
     set -l app2_dir "$base_dir/app2unit"
     if test -d $app2_dir
-        echo (set_color yellow)"==> Repo app2unit déjà présent : $app2_dir"(set_color normal)
+        echo (set_color yellow)"==> Repo app2unit already present : $app2_dir"(set_color normal)
         git -C $app2_dir pull --ff-only; or return 1
     else
         echo (set_color green)"==> Cloning app2unit into $app2_dir"(set_color normal)
-        git clone --depth=1 https://github.com/Vladimir-csp/app2unit.git $app2_dir; or return 1
+        sudo git clone --depth=1 https://github.com/Vladimir-csp/app2unit.git $app2_dir; or return 1
     end
 
     # Vérification Makefile puis build
