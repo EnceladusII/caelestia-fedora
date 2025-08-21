@@ -645,7 +645,7 @@ cd (dirname (status filename)) || exit 1
 function confirm-overwrite
     set -l target $argv[1]
     if test -e $target
-        read -P "$target existe. Remplacer ? [y/N] " -l ans
+        read -P "$target exist. Replace ? [y/N] " -l ans
         string match -q -r '^(y|yes)$' -- (string lower $ans)
         and return 0
         or  return 1
@@ -653,40 +653,53 @@ function confirm-overwrite
     return 0
 end
 
+function link_replace --description 'Create/replace symlink target -> dest'
+    set -l src  (realpath $argv[1])
+    set -l dest $argv[2]
+
+    mkdir -p (dirname -- $dest)
+    if test -e "$dest" -o -L "$dest"
+        rm -rf -- "$dest"
+    end
+    # -s: symlink, -f: force, -n: treat dest as normal file if symlink,
+    # -T: treat dest as a file (not directory) even if it exists
+    ln -sfnT -- "$src" "$dest"
+end
+
 # Starship
-if confirm-overwrite $config/starship.toml
+if confirm-overwrite "$config/starship.toml"
     log 'Installing starship config...'
-    ln -s (realpath starship.toml) $config/starship.toml
+    link_replace ./starship.toml "$config/starship.toml"
 end
 
 # Foot
-if confirm-overwrite $config/foot
+if confirm-overwrite "$config/foot"
     log 'Installing foot config...'
-    ln -s (realpath foot) $config/foot
+    link_replace ./foot "$config/foot"
 end
 
 # Fish
-if confirm-overwrite $config/fish
+if confirm-overwrite "$config/fish"
     log 'Installing fish config...'
-    ln -s (realpath fish) $config/fish
+    link_replace ./fish "$config/fish"
 end
 
 # Fastfetch
-if confirm-overwrite $config/fastfetch
+if confirm-overwrite "$config/fastfetch"
     log 'Installing fastfetch config...'
-    ln -s (realpath fastfetch) $config/fastfetch
+    link_replace ./fastfetch "$config/fastfetch"
 end
 
 # Uwsm
-if confirm-overwrite $config/uwsm
+if confirm-overwrite "$config/uwsm"
     log 'Installing uwsm config...'
-    ln -s (realpath uwsm) $config/uwsm
+    link_replace ./uwsm "$config/uwsm"
 end
 
 # Btop
-if confirm-overwrite $config/btop
+if confirm-overwrite "$config/btop"
     log 'Installing btop config...'
-    ln -s (realpath btop) $config/btop
+    link_replace ./btop "$config/btop"
 end
 
 # Install spicetify
