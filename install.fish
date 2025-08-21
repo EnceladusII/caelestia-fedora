@@ -189,13 +189,33 @@ end
 function app2unit_install
     sudo dnf install -y git make coreutils findutils grep sed which systemd xdg-utils desktop-file-utils dash
     sudo dnf install xdg-terminal-exec
-    git clone https://github.com/Vladimir-csp/app2unit.git $script_dir/app2unit
-    pushd $script_dir/app2unit
-    make
-    sudo make PREFIX=/usr install
-    popd
+    set -l app2_dir "$base_dir/app2unit"
+    if test -d $app2_dir
+        echo (set_color yellow)"==> Repo app2unit déjà présent : $app2_dir"(set_color normal)
+        git -C $app2_dir pull --ff-only; or return 1
+    else
+        echo (set_color green)"==> Cloning app2unit into $app2_dir"(set_color normal)
+        git clone --depth=1 https://github.com/Vladimir-csp/app2unit.git $app2_dir; or return 1
+    end
 
-    echo "==> app2unit installed in /usr"
+    # Vérification Makefile puis build
+    if not test -f "$app2_dir/Makefile"
+        echo (set_color red)"ERROR: Makefile introuvable dans $app2_dir"(set_color normal)
+        return 1
+    end
+
+    pushd $app2_dir >/dev/null; or return 1
+    make; or begin; popd >/dev/null; return 1; end
+    sudo make PREFIX=/usr install; or begin; popd >/dev/null; return 1; end
+    popd >/dev/null
+
+    # Sanity check
+    if not type -q app2unit
+        echo (set_color red)"ERROR: app2unit introuvable dans le PATH après installation"(set_color normal)
+        return 1
+    end
+
+    echo (set_color green)"==> app2unit installé avec succès"(set_color normal)
 end
 
 ensure_update
