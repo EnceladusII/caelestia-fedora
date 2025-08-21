@@ -254,7 +254,7 @@ log 'All pre-setup is OK...'
 
 # Install cli and shell
 
-function caelestia_cli_install --description 'Build & install caelestia-cli from source'
+function cli_install --description 'Build & install caelestia-cli from source'
     # Dépendances de base
     set -l pkgs git python3 python3-pip python3-build python3-wheel python3-installer
     echo (set_color green)"==> Installing Python build dependencies"(set_color normal)
@@ -298,7 +298,7 @@ function caelestia_cli_install --description 'Build & install caelestia-cli from
     echo "Try: caelestia --help"
 end
 
-function caelestia_shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
+function shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
     # --- Dépendances build & runtime ---
     set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel
     echo (set_color green)"==> Installing build dependencies"(set_color normal)
