@@ -7,7 +7,6 @@ argparse -n 'install.fish' -X 0 \
     'vscode=?!contains -- "$_flag_value" codium code' \
     'discord' \
     'zen' \
-    'paru' \
     -- $argv
 or exit
 
@@ -16,14 +15,12 @@ if set -q _flag_h
     echo 'usage: ./install.sh [-h] [--noconfirm] [--spotify] [--vscode] [--discord] [--paru]'
     echo
     echo 'options:'
-    echo '  -h, --help                  show this help message and exit'
-    echo '  --noconfirm                 do not confirm package installation'
-    echo '  --spotify                   install Spotify (Spicetify)'
-    echo '  --vscode=[codium|code]      install VSCodium (or VSCode)'
-    echo '  --discord                   install Discord (OpenAsar + Equicord)'
-    echo '  --zen                       install Zen browser'
-    echo '  --paru                      use paru instead of yay as AUR helper'
-
+    echo ' -h, --help show this help message and exit'
+    echo ' --noconfirm skip confirmations (maps to dnf -y, flatpak -y)'
+    echo ' --spotify install Spotify (Flatpak)'
+    echo ' --vscode=[codium|code] install VSCodium (COPR) or VSCode (Microsoft repo)'
+    echo ' --discord install Discord (Flatpak)'
+    echo ' --zen install Zen browser (Flatpak if available)'
     exit
 end
 
@@ -64,14 +61,12 @@ function confirm-overwrite -a path
             end
         end
     end
-
     return 0
 end
 
 
 # Variables
-set -q _flag_noconfirm && set noconfirm '--noconfirm'
-set -q _flag_paru && set -l aur_helper paru || set -l aur_helper yay
+set -q _flag_noconfirm && set noconfirm '-y'
 set -q XDG_CONFIG_HOME && set -l config $XDG_CONFIG_HOME || set -l config $HOME/.config
 set -q XDG_STATE_HOME && set -l state $XDG_STATE_HOME || set -l state $HOME/.local/state
 
@@ -86,7 +81,7 @@ echo '│   \____/\__,_/\___/_/\___/____/\__/_/\__,_/     │'
 echo '│                                                 │'
 echo '╰─────────────────────────────────────────────────╯'
 set_color normal
-log 'Welcome to the Caelestia dotfiles installer!'
+log 'Welcome to the Caelestia dotfiles installer (Fedora)!'
 log 'Before continuing, please ensure you have made a backup of your config directory.'
 
 # Prompt for backup
@@ -118,23 +113,44 @@ if ! set -q _flag_noconfirm
 end
 
 
-# Install AUR helper if not already installed
-if ! pacman -Q $aur_helper &> /dev/null
-    log "$aur_helper not installed. Installing..."
+# Fedora Helpers:
 
-    # Install
-    sudo pacman -S --needed git base-devel $noconfirm
-    cd /tmp
-    git clone https://aur.archlinux.org/$aur_helper.git
-    cd $aur_helper
-    makepkg -si
-    cd ..
-    rm -rf $aur_helper
-
-    # Setup
-    $aur_helper -Y --gendb
-    $aur_helper -Y --devel --save
+function ensure_rpmfusion
+    if ! rpm -q rpmfusion-free-release &>/dev/null
+        log 'Enabling RPM Fusion (free & nonfree)...'
+        set -l rel (rpm -E %fedora)
+        sudo dnf install $noconfirm \
+            https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$rel.noarch.rpm \
+            https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$rel.noarch.rpm
+    end
 end
+
+function ensure_flatpak
+    if ! command -v flatpak &>/dev/null
+            log 'Installing Flatpak...'
+            sudo dnf install $noconfirm flatpak
+        end
+        if ! flatpak remotes | string match -q '*flathub*'
+            log 'Enabling Flathub...'
+            flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    end
+end
+
+function ensure_tools
+    # Base tools analogous to git/base-devel
+    sudo dnf install $noconfirm git curl tar unzip jq
+end
+
+function dnf_install
+    set pkgs $argv
+    if test (count $pkgs) -gt 0
+        sudo dnf install $noconfirm $pkgs
+    end
+end
+
+ensure_tools
+ensure_rpmfusion
+ensure_flatpak
 
 # Install metapackage for deps
 log 'Installing metapackage...'
