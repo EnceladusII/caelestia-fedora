@@ -186,21 +186,42 @@ function hyprptools_install
     sudo dnf install $noconfirm hyprpicker hypridle
 end
 
+function app2unit_install
+    sudo dnf install -y git make coreutils findutils grep sed which systemd xdg-utils desktop-file-utils dash
+    sudo dnf install xdg-terminal-exec
+    git clone https://github.com/Vladimir-csp/app2unit.git $script_dir/app2unit
+    pushd $script_dir/app2unit
+    make
+    sudo make PREFIX=/usr install
+    popd
+
+    echo "==> app2unit installed in /usr"
+end
+
 ensure_update
 ensure_tools
 ensure_rpmfusion
 ensure_flatpak
+wl-screenrec_install
 starship_install
 material_symbols_install
 fonts_install
-wl-screenrec_install
 cliphist_install
 hyprptools_install
+app2unit_install
 
 log 'All pre-setup is OK...'
 
-# Install metapackage for deps
-log 'Installing metapackage...'
+# Install cli and shell
+
+function cli_install
+end
+
+function shell_install
+end
+
+cli_install
+shell_install
 
 # Cd into dir
 cd (dirname (status filename)) || exit 1
