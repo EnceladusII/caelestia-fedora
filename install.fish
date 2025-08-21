@@ -167,20 +167,7 @@ function quickshell_install
 end
 
 function material_symbols_install --description 'Install Google Material Symbols fonts for current user'
-    set -l dest ~/.local/share/fonts/MaterialSymbols
-    mkdir -p $dest
-
-    set -l tgz (sudo npm pack material-symbols@latest | tail -n1)
-
-    tar -xzf $tgz
-
-    command find package -type f \( -name '*.ttf' -o -name '*.otf' \) -exec cp -v {} $dest \;
-
-    rm -rf package $tgz
-
-    fc-cache -f
-
-    echo "Material Symbols installées dans $dest"
+   sudo npm install material-symbols@latest
 end
 
 function fonts_install
