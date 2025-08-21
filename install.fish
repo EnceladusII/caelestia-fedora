@@ -555,10 +555,15 @@ log 'Caelestia SHELL is Installed'
 cd (dirname (status filename)) || exit 1
 
 # Install hypr* configs
-if confirm-overwrite $config/hypr
-    log 'Installing hypr* configs...'
-    ln -s (realpath hypr) $config/hypr
-    hyprctl reload
+function confirm-overwrite
+    set -l target $argv[1]
+    if test -e $target
+        read -P "$target existe. Remplacer ? [y/N] " -l ans
+        string match -q -r '^(y|yes)$' -- (string lower $ans)
+        and return 0
+        or  return 1
+    end
+    return 0
 end
 
 # Starship
