@@ -191,26 +191,66 @@ function fonts_install
     fc-cache -fv
 end
 
-function wl-screenrec_install --description 'Build & install wl-screenrec (Fedora, pile actuelle)'
+function wl-screenrec_install --description 'Build & install wl-screenrec (Fedora, current stack)'
     set -l base_deps pkgconf-pkg-config gcc make
+
     echo (set_color green)"==> Build dependencies"(set_color normal)
     sudo dnf install -y $base_deps ffmpeg-free-devel; or return 1
 
+    # Make sure we don't have custom pkg-config vars that hide system .pc files
     set -e PKG_CONFIG_LIBDIR
     set -e PKG_CONFIG_PATH
 
     echo (set_color green)"==> Verify pkg-config (libavutil)"(set_color normal)
     if not pkg-config --exists libavutil
-        echo (set_color red)"ERREUR: pkg-config don't find libavutil. Check ffmpeg-free-devel."(set_color normal)
-        echo "Tips: rpm -ql ffmpeg-free-devel | grep pkgconfig/libavutil.pc"
+        echo (set_color red)"ERROR: pkg-config cannot find libavutil (FFmpeg). Check ffmpeg-free-devel."(set_color normal)
+        echo "Tip: rpm -ql ffmpeg-free-devel | grep pkgconfig/libavutil.pc"
         return 1
     end
 
     echo (set_color green)"==> Compiling wl-screenrec"(set_color normal)
     cargo install --force wl-screenrec; or return 1
 
+    # Ensure ~/.cargo/bin is on PATH (universal for all future fish sessions)
+    set -l cargo_bin "$HOME/.cargo/bin"
+    set -l added_to_path 0
+    if test -d $cargo_bin
+        if not contains -- $cargo_bin $PATH
+            echo (set_color yellow)"==> ~/.cargo/bin not in PATH; adding universally"(set_color normal)
+            if type -q fish_add_path
+                fish_add_path -U $cargo_bin; or true
+            else
+                # Fallback for older fish
+                set -U fish_user_paths $cargo_bin $fish_user_paths
+            end
+            set added_to_path 1
+        end
+    else
+        echo (set_color yellow)"Note: $cargo_bin does not exist yet; cargo should create it on first install."(set_color normal)
+    end
+
+    # Verify the installed binary is reachable
+    set -l bin_path "$cargo_bin/wl-screenrec"
+    if test -x $bin_path
+        if type -q wl-screenrec
+            echo (set_color green)"OK. wl-screenrec is installed and on PATH."(set_color normal)
+        else
+            echo (set_color yellow)"Installed, but not on current PATH. Open a new fish session or run:"(set_color normal)
+            echo "  set -gx PATH $cargo_bin \$PATH"
+        end
+    else
+        echo (set_color red)"ERROR: wl-screenrec binary not found at $bin_path"(set_color normal)
+        echo "Check cargo output or reinstall."
+        return 1
+    end
+
+    if test $added_to_path -eq 1
+        echo (set_color yellow)"Note: PATH updated universally; new shells will include ~/.cargo/bin automatically."(set_color normal)
+    end
+
     echo (set_color green)"OK. Try: wl-screenrec --help"(set_color normal)
 end
+
 
 function cliphist_install
     go install go.senan.xyz/cliphist@latest
@@ -650,14 +690,21 @@ if set -q _flag_zen
     log 'Please install the CaelestiaFox extension from https://addons.mozilla.org/en-US/firefox/addon/caelestiafox if you have not already done so.'
 end
 
-# Generate scheme stuff if needed
-if ! test -f $state/caelestia/scheme.json
+# Assure-toi que $state est défini
+if not set -q state
+    set -l state ~/.local/state
+end
+mkdir -p $state/caelestia
+
+# Génère le scheme si besoin
+if not test -f $state/caelestia/scheme.json
     caelestia scheme set -n shadotheme
-    sleep .5
+    sleep 0.5
     hyprctl reload
 end
 
-# Start the shell
-caelestia shell -d > /dev/null
+# Démarre la shell Caelestia en arrière-plan
+caelestia shell -d >/dev/null 2>&1 &
+
 
 log 'Done!'
