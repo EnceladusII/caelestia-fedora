@@ -190,7 +190,7 @@ function fonts_install
     unzip /tmp/CascadiaCode.zip -d ~/.local/share/fonts/CascadiaCode
 
     wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip -O /tmp/JetBrainsMono.zip
-    unzip /tmp/JetBrainsMono.zip -d ~/,local/share/fonts/JetBrainsMono
+    unzip /tmp/JetBrainsMono.zip -d ~/.local/share/fonts/JetBrainsMono
 
     fc-cache -fv
 end
