@@ -706,6 +706,18 @@ if confirm-overwrite "$config/btop"
     link_replace ./btop "$config/btop"
 end
 
+# qt5ct
+if confirm-overwrite "$config/qt5ct"
+    log 'Installing qt5ct config...'
+    link_replace ./qt5ct "$config/qt5ct"
+end
+
+# qt6ct
+if confirm-overwrite "$config/qt6ct"
+    log 'Installing qt6ct config...'
+    link_replace ./qt6ct "$config/qt6ct"
+end
+
 # Install spicetify
 if set -q _flag_spotify
     log 'Installing spotify (spicetify)...'
