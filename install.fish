@@ -173,8 +173,54 @@ function fonts_install
     fc-cache -fv
 end
 
-function wl-screenrec_install
-    cargo install wl-screenrec
+function wl-screenrec_install --description 'Install wl-screenrec with working FFmpeg pkg-config on Fedora'
+    set -l base_deps pkgconf-pkg-config gcc make
+    set -l tried_free 0
+    set -l tried_full 0
+
+    echo (set_color green)"==> Installing build deps"(set_color normal)
+    sudo dnf install -y $base_deps; or return 1
+
+    # Prefer full FFmpeg if RPM Fusion is enabled; otherwise try ffmpeg-free-devel
+    if sudo dnf -q list --installed rpmfusion-free-release &>/dev/null
+        echo (set_color green)"==> RPM Fusion detected; installing ffmpeg-devel"(set_color normal)
+        sudo dnf install -y ffmpeg-devel; or return 1
+        set tried_full 1
+    else
+        echo (set_color yellow)"==> RPM Fusion not detected; trying ffmpeg-free-devel"(set_color normal)
+        if sudo dnf install -y ffmpeg-free-devel
+            set tried_free 1
+        else
+            echo (set_color yellow)"==> Enabling RPM Fusion and trying ffmpeg-devel"(set_color normal)
+            sudo dnf install -y \
+              https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-(rpm -E %fedora).noarch.rpm \
+              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-(rpm -E %fedora).noarch.rpm; or return 1
+            sudo dnf install -y ffmpeg-devel; or return 1
+            set tried_full 1
+        end
+    end
+
+    # Export canonical pkg-config paths
+    set -x PKG_CONFIG_PATH /usr/lib64/pkgconfig:/usr/lib/pkgconfig
+
+    echo (set_color green)"==> Verifying pkg-config visibility for libavutil"(set_color normal)
+    if not pkg-config --exists libavutil
+        echo (set_color yellow)"pkg-config can't see libavutil; probing package that provides it..."(set_color normal)
+        dnf provides '*/libavutil.pc'
+        echo (set_color red)"ERROR: libavutil.pc not visible to pkg-config. Install the package shown above, then re-run."(set_color normal)
+        return 1
+    end
+
+    echo (set_color green)"==> pkg-config OK:"(set_color normal) (pkg-config --modversion libavutil)
+
+    echo (set_color green)"==> Installing wl-screenrec via cargo"(set_color normal)
+    cargo install --force wl-screenrec; or begin
+        echo (set_color red)"Build failed. Printing cargo log hint..."(set_color normal)
+        echo "Try: RUST_BACKTRACE=1 cargo install --force wl-screenrec"
+        return 1
+    end
+
+    echo (set_color green)"==> Done. Test with: wl-screenrec --help"(set_color normal)
 end
 
 function cliphist_install
@@ -277,33 +323,83 @@ function cli_install --description 'Build & install caelestia-cli from source'
     echo (set_color green)"==> Building wheel"(set_color normal)
     python3 -m build --wheel; or begin; popd >/dev/null; return 1; end
 
-    # Supprimer ancien binaire s'il existe
+    # Supprimer ancien binaire s'il existe (évite FileExistsError sur 'scripts')
     if test -e /usr/local/bin/caelestia
         echo (set_color yellow)"==> Removing old /usr/local/bin/caelestia"(set_color normal)
         sudo rm -f /usr/local/bin/caelestia
     end
 
-    # Installer wheel
+    # Détecter le site-packages cible et purger l’ancienne install (évite FileExistsError sur les fichiers)
+    echo (set_color green)"==> Purging previous package from site-packages"(set_color normal)
+    set -l purelib (python3 - <<'PY'
+import sysconfig
+print(sysconfig.get_path("purelib"))
+PY
+)
+    # Sécurités : si ça échoue, fallback /usr/local ET /usr
+    if test -z "$purelib"
+        set purelib "/usr/local/lib/python"(python3 -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")')"/site-packages"
+    end
+
+    # Cibles possibles du paquet
+    set -l targets \
+        "$purelib/caelestia" \
+        "$purelib/caelestia_cli" \
+        $purelib/caelestia-*.dist-info \
+        $purelib/caelestia_cli-*.dist-info \
+        $purelib/caelestia*.egg-info
+
+    # Purge dans le purelib détecté
+    for t in $targets
+        if test -e $t
+            echo (set_color yellow)"   - removing $t"(set_color normal)
+            sudo rm -rf $t
+        end
+    end
+
+    # Par prudence, purge aussi les chemins Fedora classiques si différents
+    for base in /usr/local/lib /usr/lib
+        set -l alt "$base/python"(python3 -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")')"/site-packages"
+        if test "$alt" != "$purelib" -a -d "$alt"
+            for t in \
+                "$alt/caelestia" \
+                "$alt/caelestia_cli" \
+                $alt/caelestia-*.dist-info \
+                $alt/caelestia_cli-*.dist-info \
+                $alt/caelestia*.egg-info
+                if test -e $t
+                    echo (set_color yellow)"   - removing $t"(set_color normal)
+                    sudo rm -rf $t
+                end
+            end
+        end
+    end
+
+    # Installer le wheel via python -m installer (solution 1)
     echo (set_color green)"==> Installing wheel with python -m installer"(set_color normal)
     sudo python3 -m installer dist/*.whl; or begin; popd >/dev/null; return 1; end
 
     # Installer completion Fish
-    echo (set_color green)"==> Installing Fish completion"(set_color normal)
-    sudo mkdir -p /usr/share/fish/vendor_completions.d
-    sudo cp completions/caelestia.fish /usr/share/fish/vendor_completions.d/; or begin; popd >/dev/null; return 1; end
+    if test -f completions/caelestia.fish
+        echo (set_color green)"==> Installing Fish completion"(set_color normal)
+        sudo install -Dm644 completions/caelestia.fish /usr/share/fish/vendor_completions.d/caelestia.fish; or begin; popd >/dev/null; return 1; end
+    else
+        echo (set_color yellow)"==> Skipping Fish completion (file not found)"(set_color normal)
+    end
 
     popd >/dev/null
 
     # Vérification
     if not type -q caelestia
-        echo (set_color red)"ERROR: caelestia command not found after installation"(set_color normal)
+        echo (set_color red)"ERROR: 'caelestia' command not found after installation"(set_color normal)
         return 1
     end
 
+    set -l binpath (command -s caelestia)
     echo (set_color green)"==> caelestia-cli installed successfully"(set_color normal)
+    echo "Binary: $binpath"
     echo "Try: caelestia --help"
 end
-
 
 function shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
     # --- Dépendances build & runtime ---
