@@ -333,8 +333,6 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     for mod in libpipewire-0.3 aubio
         if not pkg-config --exists $mod
             echo (set_color red)"ERROR: pkg-config ne trouve pas le module '$mod'."(set_color normal)
-            echo "Astuce: le fichier .pc est fourni par 'pipewire-devel' et 'aubio-devel'."
-            echo "Essayez: rpm -ql pipewire-devel | grep \'\\.pc$\'  et  pkg-config --list-all | grep pipewire"
             return 1
         end
     end
