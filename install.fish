@@ -329,33 +329,38 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         return 1
     end
 
-    # Vérifie explicitement la présence des modules pkg-config
-    for mod in libpipewire-0.3 aubio
-        if not pkg-config --exists $mod
-            echo (set_color red)"ERROR: pkg-config ne trouve pas le module '$mod'."(set_color normal)
-            return 1
+    # Tente d'abord libpipewire-0.3, puis pipewire-0.3 en secours
+    set -l pw_mod libpipewire-0.3
+    if not pkg-config --exists $pw_mod
+        if pkg-config --exists pipewire-0.3
+            set pw_mod pipewire-0.3
         end
     end
 
-    # Récupère les flags (silencieux)
-    set -l cflags_pipe (pkg-config --silence-errors --cflags libpipewire-0.3)
-    set -l libs_pipe   (pkg-config --silence-errors --libs   libpipewire-0.3)
+    # Flags via pkg-config (silencieux) + includes forcés Fedora (garantis)
+    set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod)
+    set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod)
     set -l cflags_aub  (pkg-config --silence-errors --cflags aubio)
     set -l libs_aub    (pkg-config --silence-errors --libs   aubio)
 
-    # Fallbacks défensifs (au cas où)
-    if test -z "$cflags_pipe"
-        set cflags_pipe "-I/usr/include/pipewire-0.3 -I/usr/include/spa-0.2"
-    end
-    if test -z "$cflags_aub"
-        set cflags_aub "-I/usr/include/aubio"
-    end
+    # Ajoute *toujours* les includes Fedora (au cas où pkg-config est muet/incomplet)
+    set -l forced_includes "-I/usr/include/pipewire-0.3 -I/usr/include/spa-0.2"
+
+    # Fallbacks défensifs
     if test -z "$libs_pipe"
         set libs_pipe "-lpipewire-0.3"
     end
     if test -z "$libs_aub"
         set libs_aub "-laubio"
     end
+
+    # Affiche les flags pour diagnostiquer
+    echo (set_color cyan)"[diag] Using PipeWire module: $pw_mod"(set_color normal)
+    echo (set_color cyan)"[diag] CFLAGS pipewire: $cflags_pipe"(set_color normal)
+    echo (set_color cyan)"[diag] CFLAGS aubio   : $cflags_aub"(set_color normal)
+    echo (set_color cyan)"[diag] FORCED include : $forced_includes"(set_color normal)
+    echo (set_color cyan)"[diag] LIBS pipewire : $libs_pipe"(set_color normal)
+    echo (set_color cyan)"[diag] LIBS aubio    : $libs_aub"(set_color normal)
 
     set -l build_root $XDG_CACHE_HOME
     if test -z "$build_root"
@@ -366,9 +371,11 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l out "$workdir/beat_detector"
 
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
-    # Ordre: CFLAGS -> source -> -o -> LIBS
-    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $src -o $out $libs_pipe $libs_aub; or begin
+    # Ordre: CFLAGS -> includes forcés -> source -> -o -> LIBS
+    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $forced_includes $src -o $out $libs_pipe $libs_aub; or begin
         echo (set_color red)"ERROR: compilation échouée"(set_color normal)
+        echo "Astuce: vérifie la présence du header:"
+        echo "  ls -l /usr/include/pipewire-0.3/pipewire/pipewire.h"
         return 1
     end
 
@@ -386,6 +393,7 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     echo "Astuce: si tu choisis un autre chemin que $sys_dest, exporte:"
     echo "  set -Ux CAELESTIA_BD_PATH /chemin/vers/beat_detector"
 end
+
 
 
 
