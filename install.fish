@@ -343,17 +343,18 @@ log 'All pre-setup is OK...'
 # Install cli and shell
 
 function cli_install --description 'Build & install caelestia-cli from source'
-
+    # --- Outils de build Python ---
     set -l pkgs git python3 python3-pip python3-build python3-wheel python3-installer
     echo (set_color green)"==> Installing Python build dependencies"(set_color normal)
     sudo dnf install -y $pkgs; or return 1
 
+    # --- Répertoires de travail ---
     set -l build_root $XDG_CACHE_HOME
     if test -z "$build_root"
         set build_root "$HOME/.cache"
     end
     mkdir -p $build_root
-    set -l workdir (mktemp -d "$build_root/caelestia-cli.XXXXXX") ; or return 1
+    set -l workdir (mktemp -d "$build_root/caelestia-cli.XXXXXX"); or return 1
 
     echo (set_color green)"==> Cloning caelestia-cli source"(set_color normal)
     git clone --depth=1 https://github.com/caelestia-dots/cli.git $workdir/cli; or return 1
@@ -362,6 +363,7 @@ function cli_install --description 'Build & install caelestia-cli from source'
     echo (set_color green)"==> Building wheel"(set_color normal)
     python3 -m build --wheel; or begin; popd >/dev/null; return 1; end
 
+    # --- Nettoyage des anciennes installs (système) ---
     if test -e /usr/local/bin/caelestia
         echo (set_color yellow)"==> Removing old /usr/local/bin/caelestia"(set_color normal)
         sudo rm -f /usr/local/bin/caelestia
@@ -369,7 +371,6 @@ function cli_install --description 'Build & install caelestia-cli from source'
 
     echo (set_color green)"==> Purging previous package from site-packages"(set_color normal)
     set -l purelib (python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
-
     if test -z "$purelib"
         set purelib "/usr/local/lib/python"(python3 -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")')"/site-packages"
     end
@@ -405,9 +406,29 @@ function cli_install --description 'Build & install caelestia-cli from source'
         end
     end
 
-    echo (set_color green)"==> Installing wheel with python -m installer"(set_color normal)
-    sudo python3 -m installer dist/*.whl; or begin; popd >/dev/null; return 1; end
+    # --- Installation : préférer pip pour résoudre les dépendances ---
+    set -l wheel (ls dist/*.whl ^/dev/null)
+    if test -n "$wheel"
+        echo (set_color green)"==> Installing wheel with pip (resolves deps)"(set_color normal)
+        # Fedora protège le site-packages : --break-system-packages peut être requis
+        sudo python3 -m pip install --upgrade $wheel --break-system-packages; or begin
+            echo (set_color red)"pip install failed; falling back to 'python -m installer' + explicit deps"(set_color normal)
 
+            # Fallback minimal : installer le wheel brut + dépendances connues
+            sudo python3 -m installer $wheel; or begin; popd >/dev/null; return 1; end
+
+            # Dépendances runtime explicites (complète au besoin)
+            set -l reqs materialyoucolor
+            echo (set_color green)"==> Installing runtime deps with pip (explicit)"(set_color normal)
+            sudo python3 -m pip install --upgrade $reqs --break-system-packages; or begin; popd >/dev/null; return 1; end
+        end
+    else
+        echo (set_color red)"ERROR: wheel not found in dist/"(set_color normal)
+        popd >/dev/null
+        return 1
+    end
+
+    # --- Completions Fish ---
     if test -f completions/caelestia.fish
         echo (set_color green)"==> Installing Fish completion"(set_color normal)
         sudo install -Dm644 completions/caelestia.fish /usr/share/fish/vendor_completions.d/caelestia.fish; or begin; popd >/dev/null; return 1; end
@@ -417,8 +438,24 @@ function cli_install --description 'Build & install caelestia-cli from source'
 
     popd >/dev/null
 
+    # --- Vérifications post-install ---
     if not type -q caelestia
         echo (set_color red)"ERROR: 'caelestia' command not found after installation"(set_color normal)
+        return 1
+    end
+
+    # Test d’import de la dépendance clé
+    if not python3 - <<'PY'
+        import sys
+        try:
+            import materialyoucolor
+        except Exception as e:
+            print("MISSING: materialyoucolor ->", e, file=sys.stderr)
+            sys.exit(1)
+        print("OK: materialyoucolor present")
+        PY
+        echo (set_color red)"ERROR: Python runtime dependency missing (materialyoucolor)."(set_color normal)
+        echo "Hint: sudo python3 -m pip install materialyoucolor --break-system-packages"
         return 1
     end
 
