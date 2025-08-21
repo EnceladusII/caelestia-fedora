@@ -115,6 +115,10 @@ end
 
 # Fedora Helpers:
 
+function ensure_update
+    sudo dnf upgrade $noconfirm
+end
+
 function ensure_rpmfusion
     if ! rpm -q rpmfusion-free-release &>/dev/null
         log 'Enabling RPM Fusion (free & nonfree)...'
@@ -137,8 +141,8 @@ function ensure_flatpak
 end
 
 function ensure_tools
-    # Base tools analogous to git/base-devel
-    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel
+    # Base tools
+    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo
 end
 
 function dnf_install
@@ -148,9 +152,50 @@ function dnf_install
     end
 end
 
+function starship_install
+    sudo dnf copr enable atim/starship
+    sudo dnf install $noconfirm starship
+end
+
+function material_symbols_install
+    sudo npm install material-symbols@latest
+end
+
+function fonts_install
+    mkdir -p ~/.local/share/fonts
+
+    wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/CascadiaCode.zip -O /tmp/CascadiaCode.zip
+    unzip /tmp/CascadiaCode.zip -d ~/.local/share/fonts/CascadiaCode
+
+    wget https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip -O /tmp/JetBrainsMono.zip
+    unzip /tmp/JetBrainsMono.zip -d ~/,local/share/fonts/JetBrainsMono
+
+    fc-cache -fv
+end
+
+function wl-screenrec_install
+    cargo install wl-screenrec
+end
+
+function cliphist_install
+    go install go.senan.xyz/cliphist@latest
+end
+
+function hyprptools_install
+    sudo dnf copr enable aneagle/ags-3
+    sudo dnf install $noconfirm hyprpicker hypridle
+end
+
+ensure_update
 ensure_tools
 ensure_rpmfusion
 ensure_flatpak
+starship_install
+material_symbols_install
+fonts_install
+wl-screenrec_install
+cliphist_install
+hyprptools_install
 
 log 'All pre-setup is OK...'
 
