@@ -285,6 +285,8 @@ ensure_rpmfusion
 log 'RPM fusion installed'
 ensure_flatpak
 log 'flatpak activated'
+quickshell_install
+log 'quickshell installed'
 wl-screenrec_install
 log 'wl-screenrec installed'
 starship_install
