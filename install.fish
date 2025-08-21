@@ -152,6 +152,8 @@ ensure_tools
 ensure_rpmfusion
 ensure_flatpak
 
+log 'All pre-setup is OK...'
+
 # Install metapackage for deps
 log 'Installing metapackage...'
 $aur_helper -S --needed caelestia-meta $noconfirm
