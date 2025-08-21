@@ -428,10 +428,10 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     end
 
     # Récupère flags et les SPLIT en listes (évite '' et les gros arguments uniques)
-    set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod | string split ' ')
-    set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod | string split ' ')
-    set -l cflags_aub  (pkg-config --silence-errors --cflags aubio   | string split ' ')
-    set -l libs_aub    (pkg-config --silence-errors --libs   aubio   | string split ' ')
+    set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod | string trim | string split -n ' ')
+    set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod | string trim | string split -n ' ')
+    set -l cflags_aub  (pkg-config --silence-errors --cflags aubio   | string trim | string split -n ' ')
+    set -l libs_aub    (pkg-config --silence-errors --libs   aubio   | string trim | string split -n ' ')
 
     # Fallbacks si pkg-config renvoie vide
     if test (count $libs_pipe) -eq 0
@@ -452,6 +452,20 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         echo (set_color red)"ERROR: Impossible de localiser pipewire/pipewire.h."(set_color normal)
         return 1
     end
+
+    # Purge tokens vides et '-l' orphelin (garde-fou)
+    function _sanitize --argument-names lst
+        for x in $$lst
+            if test -n "$x"; and test "$x" != "-l"
+                echo $x
+            end
+        end
+    end
+
+    set -l cflags_pipe (_sanitize cflags_pipe)
+    set -l libs_pipe   (_sanitize libs_pipe)
+    set -l cflags_aub  (_sanitize cflags_aub)
+    set -l libs_aub    (_sanitize libs_aub)
 
     # Librairies agrégées
     set -l libs $libs_pipe $libs_aub
