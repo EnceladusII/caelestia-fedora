@@ -394,11 +394,8 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     echo "  set -Ux CAELESTIA_BD_PATH /chemin/vers/beat_detector"
 end
 
-
-
-
 cli_install
-shell_install
+#shell_install
 
 # Cd into dir
 cd (dirname (status filename)) || exit 1
