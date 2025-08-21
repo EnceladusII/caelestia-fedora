@@ -168,7 +168,6 @@ function material_symbols_install --description 'Install Google Material Symbols
     tar -xzf $tgz
 
     # Copie toutes les polices trouvées (.ttf/.otf) vers le dossier fonts utilisateur
-    # (les polices sont sous package/fonts/… dans ce paquet)
     command find package -type f \( -name '*.ttf' -o -name '*.otf' \) -exec cp -v {} $dest \;
 
     # Nettoyage
@@ -179,7 +178,6 @@ function material_symbols_install --description 'Install Google Material Symbols
 
     echo "Material Symbols installées dans $dest"
 end
-
 
 function fonts_install
     mkdir -p ~/.local/share/fonts
@@ -195,24 +193,23 @@ end
 
 function wl-screenrec_install --description 'Build & install wl-screenrec (Fedora, pile actuelle)'
     set -l base_deps pkgconf-pkg-config gcc make
-    echo (set_color green)"==> Dépendances de build"(set_color normal)
+    echo (set_color green)"==> Build dependencies"(set_color normal)
     sudo dnf install -y $base_deps ffmpeg-free-devel; or return 1
 
-    # Nettoyer env pour éviter de cacher les chemins système
     set -e PKG_CONFIG_LIBDIR
     set -e PKG_CONFIG_PATH
 
-    echo (set_color green)"==> Vérification pkg-config (libavutil)"(set_color normal)
+    echo (set_color green)"==> Verify pkg-config (libavutil)"(set_color normal)
     if not pkg-config --exists libavutil
-        echo (set_color red)"ERREUR: pkg-config ne trouve pas libavutil. Vérifie que ffmpeg-free-devel est bien installé."(set_color normal)
-        echo "Astuce: rpm -ql ffmpeg-free-devel | grep pkgconfig/libavutil.pc"
+        echo (set_color red)"ERREUR: pkg-config don't find libavutil. Check ffmpeg-free-devel."(set_color normal)
+        echo "Tips: rpm -ql ffmpeg-free-devel | grep pkgconfig/libavutil.pc"
         return 1
     end
 
-    echo (set_color green)"==> Compilation wl-screenrec"(set_color normal)
+    echo (set_color green)"==> Compiling wl-screenrec"(set_color normal)
     cargo install --force wl-screenrec; or return 1
 
-    echo (set_color green)"OK. Lance: wl-screenrec --help"(set_color normal)
+    echo (set_color green)"OK. Try: wl-screenrec --help"(set_color normal)
 end
 
 function cliphist_install
@@ -498,7 +495,9 @@ function shell_install --description 'Install Caelestia shell into XDG config an
 end
 
 cli_install
-#shell_install
+log 'Caelestia CLI is Installed'
+shell_install
+log 'Caelestia SHELL is Installed'
 
 # Cd into dir
 cd (dirname (status filename)) || exit 1
