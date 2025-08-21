@@ -186,36 +186,61 @@ function hyprptools_install
     sudo dnf install $noconfirm hyprpicker hypridle
 end
 
-function app2unit_install
-    sudo dnf install -y git make coreutils findutils grep sed which systemd xdg-utils desktop-file-utils dash
-    sudo dnf install xdg-terminal-exec
-    set -l app2_dir "$base_dir/app2unit"
-    if test -d $app2_dir
-        echo (set_color yellow)"==> Repo app2unit already present : $app2_dir"(set_color normal)
-        git -C $app2_dir pull --ff-only; or return 1
-    else
-        echo (set_color green)"==> Cloning app2unit into $app2_dir"(set_color normal)
-        sudo git clone --depth=1 https://github.com/Vladimir-csp/app2unit.git $app2_dir; or return 1
+function app2unit_install --description 'Build & install app2unit (and xdg-terminal-exec if missing) safely'
+    # Build dir sûr (cache utilisateur ou /tmp)
+    set -l build_root $XDG_CACHE_HOME
+    if test -z "$build_root"
+        set build_root "$HOME/.cache"
     end
-
-    # Vérification Makefile puis build
-    if not test -f "$app2_dir/Makefile"
-        echo (set_color red)"ERROR: Makefile introuvable dans $app2_dir"(set_color normal)
+    mkdir -p $build_root
+    set -l workdir (mktemp -d "$build_root/app2unit.XXXXXX") ; or begin
+        echo (set_color red)"ERROR: mktemp failed"(set_color normal)
         return 1
     end
 
-    pushd $app2_dir >/dev/null; or return 1
-    make; or begin; popd >/dev/null; return 1; end
-    sudo make PREFIX=/usr install; or begin; popd >/dev/null; return 1; end
+    # Dépendances de base
+    set -l pkgs git make coreutils findutils grep sed which systemd xdg-utils desktop-file-utils dash
+    echo (set_color green)"==> Installing base dependencies"(set_color normal)
+    sudo dnf install -y $pkgs ; or return 1
+
+    # xdg-terminal-exec (DNF si dispo, sinon source dans workdir)
+    if not type -q xdg-terminal-exec
+        echo (set_color yellow)"==> Installing xdg-terminal-exec"(set_color normal)
+        if sudo dnf info xdg-terminal-exec >/dev/null 2>&1
+            sudo dnf install -y xdg-terminal-exec ; or return 1
+        else
+            set -l xte_dir "$workdir/xdg-terminal-exec"
+            git clone --depth=1 https://github.com/Vladimir-csp/xdg-terminal-exec.git $xte_dir ; or return 1
+            pushd $xte_dir >/dev/null ; or return 1
+            make ; or begin; popd >/dev/null; return 1; end
+            sudo make PREFIX=/usr install ; or begin; popd >/dev/null; return 1; end
+            popd >/dev/null
+        end
+    end
+
+    # app2unit depuis la source (toujours dans workdir)
+    set -l app2_dir "$workdir/app2unit"
+    git clone --depth=1 https://github.com/Vladimir-csp/app2unit.git $app2_dir ; or return 1
+    if not test -f "$app2_dir/Makefile"
+        echo (set_color red)"ERROR: Makefile not found in $app2_dir"(set_color normal)
+        return 1
+    end
+    pushd $app2_dir >/dev/null ; or return 1
+    make ; or begin; popd >/dev/null; return 1; end
+    sudo make PREFIX=/usr install ; or begin; popd >/dev/null; return 1; end
     popd >/dev/null
 
     # Sanity check
     if not type -q app2unit
-        echo (set_color red)"ERROR: app2unit introuvable dans le PATH après installation"(set_color normal)
+        echo (set_color red)"ERROR: app2unit not in PATH after install"(set_color normal)
         return 1
     end
 
-    echo (set_color green)"==> app2unit installé avec succès"(set_color normal)
+    echo (set_color green)"==> app2unit installed successfully"(set_color normal)
+    echo "Try: app2unit --help"
+
+    # Nettoyage : décommente si tu veux supprimer les sources après build
+    # rm -rf $workdir
 end
 
 ensure_update
