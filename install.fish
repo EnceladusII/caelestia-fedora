@@ -170,7 +170,7 @@ function material_symbols_install --description 'Install Google Material Symbols
     set -l dest ~/.local/share/fonts/MaterialSymbols
     mkdir -p $dest
 
-    set -l tgz (npm pack material-symbols@latest | tail -n1)
+    set -l tgz (sudo npm pack material-symbols@latest | tail -n1)
 
     tar -xzf $tgz
 
