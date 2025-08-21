@@ -187,7 +187,6 @@ function hyprptools_install
 end
 
 function app2unit_install --description 'Build & install app2unit (and xdg-terminal-exec if missing) safely'
-    # Build dir sûr (cache utilisateur ou /tmp)
     set -l build_root $XDG_CACHE_HOME
     if test -z "$build_root"
         set build_root "$HOME/.cache"
@@ -198,12 +197,10 @@ function app2unit_install --description 'Build & install app2unit (and xdg-termi
         return 1
     end
 
-    # Dépendances de base
     set -l pkgs git make coreutils findutils grep sed which systemd xdg-utils desktop-file-utils dash
     echo (set_color green)"==> Installing base dependencies"(set_color normal)
     sudo dnf install -y $pkgs ; or return 1
-
-    # xdg-terminal-exec (DNF si dispo, sinon source dans workdir)
+)
     if not type -q xdg-terminal-exec
         echo (set_color yellow)"==> Installing xdg-terminal-exec"(set_color normal)
         if sudo dnf info xdg-terminal-exec >/dev/null 2>&1
@@ -218,7 +215,6 @@ function app2unit_install --description 'Build & install app2unit (and xdg-termi
         end
     end
 
-    # app2unit depuis la source (toujours dans workdir)
     set -l app2_dir "$workdir/app2unit"
     git clone --depth=1 https://github.com/Vladimir-csp/app2unit.git $app2_dir ; or return 1
     if not test -f "$app2_dir/Makefile"
@@ -239,7 +235,6 @@ function app2unit_install --description 'Build & install app2unit (and xdg-termi
     echo (set_color green)"==> app2unit installed successfully"(set_color normal)
     echo "Try: app2unit --help"
 
-    # Nettoyage : décommente si tu veux supprimer les sources après build
     # rm -rf $workdir
 end
 
@@ -259,11 +254,133 @@ log 'All pre-setup is OK...'
 
 # Install cli and shell
 
-function cli_install
+function caelestia_cli_install --description 'Build & install caelestia-cli from source'
+    # Dépendances de base
+    set -l pkgs git python3 python3-pip python3-build python3-wheel python3-installer
+    echo (set_color green)"==> Installing Python build dependencies"(set_color normal)
+    sudo dnf install -y $pkgs; or return 1
+
+    # Répertoire de travail sûr (dans ~/.cache)
+    set -l build_root $XDG_CACHE_HOME
+    if test -z "$build_root"
+        set build_root "$HOME/.cache"
+    end
+    mkdir -p $build_root
+    set -l workdir (mktemp -d "$build_root/caelestia-cli.XXXXXX") ; or return 1
+
+    # Cloner le dépôt
+    echo (set_color green)"==> Cloning caelestia-cli source"(set_color normal)
+    git clone --depth=1 https://github.com/caelestia-dots/cli.git $workdir/cli; or return 1
+    pushd $workdir/cli >/dev/null; or return 1
+
+    # Build wheel
+    echo (set_color green)"==> Building wheel"(set_color normal)
+    python3 -m build --wheel; or begin; popd >/dev/null; return 1; end
+
+    # Installer wheel
+    echo (set_color green)"==> Installing wheel with python -m installer"(set_color normal)
+    sudo python3 -m installer dist/*.whl; or begin; popd >/dev/null; return 1; end
+
+    # Installer completion Fish
+    echo (set_color green)"==> Installing Fish completion"(set_color normal)
+    sudo mkdir -p /usr/share/fish/vendor_completions.d
+    sudo cp completions/caelestia.fish /usr/share/fish/vendor_completions.d/; or begin; popd >/dev/null; return 1; end
+
+    popd >/dev/null
+
+    # Vérification
+    if not type -q caelestia
+        echo (set_color red)"ERROR: caelestia command not found after installation"(set_color normal)
+        return 1
+    end
+
+    echo (set_color green)"==> caelestia-cli installed successfully"(set_color normal)
+    echo "Try: caelestia --help"
 end
 
-function shell_install
+function caelestia_shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
+    # --- Dépendances build & runtime ---
+    set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel
+    echo (set_color green)"==> Installing build dependencies"(set_color normal)
+    sudo dnf install -y $pkgs; or return 1
+
+    # --- Répertoires ---
+    set -l xdg_conf $XDG_CONFIG_HOME
+    if test -z "$xdg_conf"
+        set xdg_conf "$HOME/.config"
+    end
+    set -l qsh_dir "$xdg_conf/quickshell"
+    set -l dest_cfg "$qsh_dir/caelestia"
+
+    mkdir -p $qsh_dir; or return 1
+
+    # --- Clonage / mise à jour du dépôt shell ---
+    if test -d "$dest_cfg/.git"
+        echo (set_color green)"==> Updating Caelestia shell in $dest_cfg"(set_color normal)
+        git -C $dest_cfg pull --ff-only; or return 1
+    else
+        echo (set_color green)"==> Cloning Caelestia shell to $dest_cfg"(set_color normal)
+        git clone --depth=1 https://github.com/caelestia-dots/shell.git $dest_cfg; or return 1
+    end
+
+    # --- Compilation du beat detector ---
+    set -l src "$dest_cfg/assets/beat_detector.cpp"
+    if not test -f "$src"
+        echo (set_color red)"ERROR: beat_detector.cpp introuvable: $src"(set_color normal)
+        return 1
+    end
+
+    # Flags via pkg-config (robuste). Fallback minimal si pkg-config renvoie vide.
+    set -l cflags_pipe (pkg-config --cflags pipewire-0.3 ^/dev/null)
+    set -l libs_pipe   (pkg-config --libs   pipewire-0.3 ^/dev/null)
+    set -l cflags_aub  (pkg-config --cflags aubio ^/dev/null)
+    set -l libs_aub    (pkg-config --libs   aubio ^/dev/null)
+
+    if test -z "$libs_pipe" -o -z "$libs_aub"
+        echo (set_color yellow)"WARN: pkg-config n'a pas retourné tous les flags; tentative avec valeurs par défaut"(set_color normal)
+        if test -z "$cflags_pipe"
+            set cflags_pipe "-I/usr/include/pipewire-0.3 -I/usr/include/spa-0.2"
+        end
+        if test -z "$cflags_aub"
+            set cflags_aub "-I/usr/include/aubio"
+        end
+        if test -z "$libs_pipe"
+            set libs_pipe "-lpipewire-0.3"
+        end
+        if test -z "$libs_aub"
+            set libs_aub "-laubio"
+        end
+    end
+
+    set -l build_root $XDG_CACHE_HOME
+    if test -z "$build_root"
+        set build_root "$HOME/.cache"
+    end
+    mkdir -p $build_root; or return 1
+    set -l workdir (mktemp -d "$build_root/caelestia-bd.XXXXXX"); or return 1
+    set -l out "$workdir/beat_detector"
+
+    echo (set_color green)"==> Compiling beat_detector"(set_color normal)
+    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub -o $out $src $libs_pipe $libs_aub; or begin
+        echo (set_color red)"ERROR: compilation échouée"(set_color normal)
+        return 1
+    end
+
+    # --- Installation du binaire ---
+    set -l sys_dest "/usr/lib/caelestia/beat_detector"
+    echo (set_color green)"==> Installing beat_detector to $sys_dest"(set_color normal)
+    sudo install -D -m 0755 $out $sys_dest; or return 1
+
+    # --- Récapitulatif / Conseils ---
+    echo (set_color green)"==> Caelestia shell installée dans $dest_cfg"(set_color normal)
+    echo (set_color green)"==> beat_detector installé dans $sys_dest"(set_color normal)
+    echo "Astuce: si tu choisis un autre chemin que $sys_dest, exporte:"
+    echo "  set -Ux CAELESTIA_BD_PATH /chemin/vers/beat_detector"
+
+    # Nettoyage optionnel:
+    # rm -rf $workdir
 end
+
 
 cli_install
 shell_install
