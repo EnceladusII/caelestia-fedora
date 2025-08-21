@@ -576,7 +576,7 @@ function shell_install --description 'Install Caelestia shell and build/install 
     end
 
     # --- Compile ---
-    set -l common_cxx "-std=c++17 -Wall -Wextra -Wpedantic -O2 -pipe -fno-plt"
+    set -l common_cxx -std=c++17 -Wall -Wextra -Wpedantic -O2 -pipe -fno-plt
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
 
     if test $verbose -eq 1
