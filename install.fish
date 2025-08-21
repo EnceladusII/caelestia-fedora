@@ -3,9 +3,9 @@
 argparse -n 'install.fish' -X 0 \
     'h/help' \
     'noconfirm' \
-    'spotify' \
+    'spotify=?!contains -- "$_flag_value" spotify deezer' \
     'vscode=?!contains -- "$_flag_value" codium code' \
-    'discord' \
+    'discord=?!contains -- "$_flag_value" discord vesktop' \
     'zen' \
     -- $argv
 or exit
@@ -17,9 +17,9 @@ if set -q _flag_h
     echo 'options:'
     echo ' -h, --help show this help message and exit'
     echo ' --noconfirm skip confirmations (maps to dnf -y, flatpak -y)'
-    echo ' --spotify install Spotify (Flatpak)'
+    echo ' --spotify=[spotify|deezer] install Spotify (Flatpak) or Deezer (Flatpak)'
     echo ' --vscode=[codium|code] install VSCodium (COPR) or VSCode (Microsoft repo)'
-    echo ' --discord install Discord (Flatpak)'
+    echo ' --discord=[discord|vesktop] install Discord (Flatpak) or Vektop (rpm)'
     echo ' --zen install Zen browser (Flatpak if available)'
     exit
 end
@@ -138,7 +138,7 @@ end
 
 function ensure_tools
     # Base tools analogous to git/base-devel
-    sudo dnf install $noconfirm git curl tar unzip jq
+    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard slurp wf-recorder glib2 fuzzel python3-build python3-installer python3-hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct
 end
 
 function dnf_install
@@ -156,7 +156,6 @@ log 'All pre-setup is OK...'
 
 # Install metapackage for deps
 log 'Installing metapackage...'
-$aur_helper -S --needed caelestia-meta $noconfirm
 
 # Cd into dir
 cd (dirname (status filename)) || exit 1
