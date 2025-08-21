@@ -200,7 +200,7 @@ function app2unit_install --description 'Build & install app2unit (and xdg-termi
     set -l pkgs git make coreutils findutils grep sed which systemd xdg-utils desktop-file-utils dash
     echo (set_color green)"==> Installing base dependencies"(set_color normal)
     sudo dnf install -y $pkgs ; or return 1
-)
+
     if not type -q xdg-terminal-exec
         echo (set_color yellow)"==> Installing xdg-terminal-exec"(set_color normal)
         if sudo dnf info xdg-terminal-exec >/dev/null 2>&1
@@ -380,7 +380,6 @@ function caelestia_shell_install --description 'Install Caelestia shell into XDG
     # Nettoyage optionnel:
     # rm -rf $workdir
 end
-
 
 cli_install
 shell_install
