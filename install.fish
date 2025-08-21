@@ -301,12 +301,11 @@ log 'All pre-setup is OK...'
 # Install cli and shell
 
 function cli_install --description 'Build & install caelestia-cli from source'
-    # Dépendances de base
+
     set -l pkgs git python3 python3-pip python3-build python3-wheel python3-installer
     echo (set_color green)"==> Installing Python build dependencies"(set_color normal)
     sudo dnf install -y $pkgs; or return 1
 
-    # Répertoire de travail (~/.cache)
     set -l build_root $XDG_CACHE_HOME
     if test -z "$build_root"
         set build_root "$HOME/.cache"
@@ -314,31 +313,25 @@ function cli_install --description 'Build & install caelestia-cli from source'
     mkdir -p $build_root
     set -l workdir (mktemp -d "$build_root/caelestia-cli.XXXXXX") ; or return 1
 
-    # Cloner le dépôt
     echo (set_color green)"==> Cloning caelestia-cli source"(set_color normal)
     git clone --depth=1 https://github.com/caelestia-dots/cli.git $workdir/cli; or return 1
     pushd $workdir/cli >/dev/null; or return 1
 
-    # Build wheel
     echo (set_color green)"==> Building wheel"(set_color normal)
     python3 -m build --wheel; or begin; popd >/dev/null; return 1; end
 
-    # Supprimer ancien binaire s'il existe (évite FileExistsError sur 'scripts')
     if test -e /usr/local/bin/caelestia
         echo (set_color yellow)"==> Removing old /usr/local/bin/caelestia"(set_color normal)
         sudo rm -f /usr/local/bin/caelestia
     end
 
-    # Détecter le site-packages cible et purger l’ancienne install (évite FileExistsError sur les fichiers)
     echo (set_color green)"==> Purging previous package from site-packages"(set_color normal)
     set -l purelib (python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
 
-    # Sécurités : si ça échoue, fallback /usr/local ET /usr
     if test -z "$purelib"
         set purelib "/usr/local/lib/python"(python3 -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")')"/site-packages"
     end
 
-    # Cibles possibles du paquet
     set -l targets \
         "$purelib/caelestia" \
         "$purelib/caelestia_cli" \
@@ -346,7 +339,6 @@ function cli_install --description 'Build & install caelestia-cli from source'
         $purelib/caelestia_cli-*.dist-info \
         $purelib/caelestia*.egg-info
 
-    # Purge dans le purelib détecté
     for t in $targets
         if test -e $t
             echo (set_color yellow)"   - removing $t"(set_color normal)
@@ -354,7 +346,6 @@ function cli_install --description 'Build & install caelestia-cli from source'
         end
     end
 
-    # Par prudence, purge aussi les chemins Fedora classiques si différents
     for base in /usr/local/lib /usr/lib
         set -l alt "$base/python"(python3 -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")')"/site-packages"
         if test "$alt" != "$purelib" -a -d "$alt"
@@ -372,11 +363,9 @@ function cli_install --description 'Build & install caelestia-cli from source'
         end
     end
 
-    # Installer le wheel via python -m installer (solution 1)
     echo (set_color green)"==> Installing wheel with python -m installer"(set_color normal)
     sudo python3 -m installer dist/*.whl; or begin; popd >/dev/null; return 1; end
 
-    # Installer completion Fish
     if test -f completions/caelestia.fish
         echo (set_color green)"==> Installing Fish completion"(set_color normal)
         sudo install -Dm644 completions/caelestia.fish /usr/share/fish/vendor_completions.d/caelestia.fish; or begin; popd >/dev/null; return 1; end
@@ -386,7 +375,6 @@ function cli_install --description 'Build & install caelestia-cli from source'
 
     popd >/dev/null
 
-    # Vérification
     if not type -q caelestia
         echo (set_color red)"ERROR: 'caelestia' command not found after installation"(set_color normal)
         return 1
@@ -437,14 +425,11 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         end
     end
 
-    # Flags via pkg-config (silencieux) + includes forcés Fedora (garantis)
+    # Flags via pkg-config (silencieux)
     set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod)
     set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod)
     set -l cflags_aub  (pkg-config --silence-errors --cflags aubio)
     set -l libs_aub    (pkg-config --silence-errors --libs   aubio)
-
-    # Ajoute *toujours* les includes Fedora (au cas où pkg-config est muet/incomplet)
-    set -l forced_includes "-I/usr/include/pipewire-0.3 -I/usr/include/spa-0.2"
 
     # Fallbacks défensifs
     if test -z "$libs_pipe"
@@ -454,11 +439,26 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         set libs_aub "-laubio"
     end
 
+    # Détection des includes en LISTES (un élément par -I)
+    set -l incs
+    if test -f /usr/include/pipewire-0.3/pipewire/pipewire.h
+        set incs $incs -I/usr/include/pipewire-0.3
+    else if test -f /usr/include/pipewire/pipewire.h
+        set incs $incs -I/usr/include
+    end
+    if test -d /usr/include/spa-0.2
+        set incs $incs -I/usr/include/spa-0.2
+    end
+    if test (count $incs) -eq 0
+        echo (set_color red)"ERROR: Impossible de localiser pipewire/pipewire.h."(set_color normal)
+        return 1
+    end
+
     # Affiche les flags pour diagnostiquer
     echo (set_color cyan)"[diag] Using PipeWire module: $pw_mod"(set_color normal)
     echo (set_color cyan)"[diag] CFLAGS pipewire: $cflags_pipe"(set_color normal)
     echo (set_color cyan)"[diag] CFLAGS aubio   : $cflags_aub"(set_color normal)
-    echo (set_color cyan)"[diag] FORCED include : $forced_includes"(set_color normal)
+    echo (set_color cyan)"[diag] INCLUDES      : $incs"(set_color normal)
     echo (set_color cyan)"[diag] LIBS pipewire : $libs_pipe"(set_color normal)
     echo (set_color cyan)"[diag] LIBS aubio    : $libs_aub"(set_color normal)
 
@@ -471,8 +471,8 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l out "$workdir/beat_detector"
 
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
-    # Ordre: CFLAGS -> includes forcés -> source -> -o -> LIBS
-    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $forced_includes $src -o $out $libs_pipe $libs_aub; or begin
+    echo (set_color yellow)"[diag] g++ cmd: g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub"(set_color normal)
+    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub; or begin
         echo (set_color red)"ERROR: compilation échouée"(set_color normal)
         echo "Astuce: vérifie la présence du header:"
         echo "  ls -l /usr/include/pipewire-0.3/pipewire/pipewire.h"
