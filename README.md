@@ -1,19 +1,19 @@
-# caelestia
+# caelestia-fedora
 
-This is the main repo of the caelestia dots and contains the user configs for
+This is the forked repo of the [caelestia dots](https://github.com/caelestia-dots/caelestia.git) for Fedora and contains the user configs for
 apps. This repo also includes an install script to install the entire dots.
 
 ## Installation
 
-Simply clone this repo and run the install script (you need
+Simply clone this repo and run the install script using (you need
 [`fish`](https://github.com/fish-shell/fish-shell) installed).
 
 > [!WARNING]
 > The install script symlinks all configs into place, so you CANNOT
 > move/remove the repo folder once you run the install script. If
 > you do, most apps will not behave properly and some (e.g. Hyprland)
-> will fail to start completely. I recommend cloning the repo to
-> `~/.local/share/caelestia`.
+> will fail to start completely. I recommend cloning the repo to an external folder like
+> `~/.caelestia`.
 
 The install script has some options for installing configs for some apps.
 
@@ -24,18 +24,17 @@ usage: ./install.sh [-h] [--noconfirm] [--spotify] [--vscode] [--discord] [--par
 options:
   -h, --help                  show this help message and exit
   --noconfirm                 do not confirm package installation
-  --spotify                   install Spotify (Spicetify)
+  --spotify=[spotify|deezer]  install Spotify (Spicetify) (or deezer-desktop)
   --vscode=[codium|code]      install VSCodium (or VSCode)
-  --discord                   install Discord (OpenAsar + Equicord)
+  --discord=[discord|vesktop] install Discord (OpenAsar + Equicord) (or vektop)
   --zen                       install Zen browser
-  --paru                      use paru instead of yay as AUR helper
 ```
 
 For example:
 
 ```sh
-git clone https://github.com/caelestia-dots/caelestia.git ~/.local/share/caelestia
-~/.local/share/caelestia/install.fish
+git clone https://github.com/EnceladusII/caelestia-fedora.git ~/.caelestia
+~/.caelestia/install.fish
 ```
 
 ### Manual installation
@@ -45,39 +44,36 @@ Dependencies:
 -   hyprland
 -   xdg-desktop-portal-hyprland
 -   xdg-desktop-portal-gtk
--   hyprpicker
--   hypridle
+-   hyprpicker (copr)
+-   hypridle (copr)
 -   wl-clipboard
--   cliphist
--   bluez-utils
+-   cliphist (go)
+-   bluez
+-   bluez-tools
 -   inotify-tools
--   app2unit
+-   app2unit (compile)
 -   wireplumber
 -   trash-cli
 -   foot
 -   fish
 -   fastfetch
--   starship
+-   starship (copr)
 -   btop
 -   jq
 -   socat
--   imagemagick
+-   ImageMagick
 -   curl
--   adw-gtk-theme
+-   adw-gtk3-theme
 -   papirus-icon-theme
--   qt5ct-kde
--   qt6ct-kde
--   ttf-jetbrains-mono-nerd
+-   qt5ct
+-   qt6ct
+-   ttf-jetbrains-mono-nerd (dl)
 
 Install all dependencies and follow the installation guides of the
 [shell](https://github.com/caelestia-dots/shell) and [cli](https://github.com/caelestia-dots/cli)
 to install them.
 
-> [!TIP]
-> If on Arch or an Arch-based distro, there is a meta package available in the AUR
-> that pulls in all dependencies (`caelestia-meta`).
-
-Then copy or symlink the `hypr`, `foot`, `fish`, `fastfetch`, `uwsm` and `btop` folders to the
+Then copy or symlink the `hypr`, `foot`, `fish`, `fastfetch`, `uwsm`, `btop`, `qt5ct` and `qt6ct` folders to the
 `$XDG_CONFIG_HOME` (usually `~/.config`) directory. e.g. `hypr -> ~/.config/hypr`.
 Copy `starship.toml` to `$XDG_CONFIG_HOME/starship.toml`.
 
@@ -120,7 +116,7 @@ Finally, install the CaelestiaFox extension from [here](https://addons.mozilla.o
 
 ## Updating
 
-Simply run `yay` to update the AUR packages, then `cd` into the repo directory and run `git pull` to update the configs.
+Simply run `cd` into the repo directory and run `git pull` to update the configs.
 
 ## Usage
 
