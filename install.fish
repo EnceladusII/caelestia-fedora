@@ -142,7 +142,7 @@ end
 
 function ensure_tools
     # Base tools
-    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard ffmpeg-devel libavutil-free libavutil-devel slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo
+    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard pkgconf-pkg-config ffmpeg-free-devel libavutil-free libavutil-devel slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo
 end
 
 function dnf_install
@@ -260,7 +260,7 @@ function cli_install --description 'Build & install caelestia-cli from source'
     echo (set_color green)"==> Installing Python build dependencies"(set_color normal)
     sudo dnf install -y $pkgs; or return 1
 
-    # Répertoire de travail sûr (dans ~/.cache)
+    # Répertoire de travail (~/.cache)
     set -l build_root $XDG_CACHE_HOME
     if test -z "$build_root"
         set build_root "$HOME/.cache"
@@ -276,6 +276,12 @@ function cli_install --description 'Build & install caelestia-cli from source'
     # Build wheel
     echo (set_color green)"==> Building wheel"(set_color normal)
     python3 -m build --wheel; or begin; popd >/dev/null; return 1; end
+
+    # Supprimer ancien binaire s'il existe
+    if test -e /usr/local/bin/caelestia
+        echo (set_color yellow)"==> Removing old /usr/local/bin/caelestia"(set_color normal)
+        sudo rm -f /usr/local/bin/caelestia
+    end
 
     # Installer wheel
     echo (set_color green)"==> Installing wheel with python -m installer"(set_color normal)
@@ -297,6 +303,7 @@ function cli_install --description 'Build & install caelestia-cli from source'
     echo (set_color green)"==> caelestia-cli installed successfully"(set_color normal)
     echo "Try: caelestia --help"
 end
+
 
 function shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
     # --- Dépendances build & runtime ---
