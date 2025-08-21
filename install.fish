@@ -123,7 +123,7 @@ function ensure_rpmfusion
     if ! rpm -q rpmfusion-free-release &>/dev/null
         log 'Enabling RPM Fusion (free & nonfree)...'
         set -l rel (rpm -E %fedora)
-        sudo dnf $noconfirm install  \
+        sudo dnf install $noconfirm  \
             https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$rel.noarch.rpm \
             https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$rel.noarch.rpm
     end
@@ -142,7 +142,7 @@ end
 
 function ensure_tools
     # Base tools
-    sudo dnf $noconfirm install git curl tar unzip libnotify swappy grim wl-clipboard pkgconf-pkg-config ffmpeg-free-devel libavutil-free libavutil-free-devel slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo --allowerasing
+    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard pkgconf-pkg-config ffmpeg-free-devel libavutil-free libavutil-free-devel slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo --allowerasing
 end
 
 function dnf_install
@@ -153,13 +153,13 @@ function dnf_install
 end
 
 function starship_install
-    sudo dnf $noconfirm copr enable atim/starship
-    sudo dnf $noconfirm install  starship
+    sudo dnf copr enable $noconfirm atim/starship
+    sudo dnf install $noconfirm starship
 end
 
 function quickshell_install
-    sudo dnf $noconfirm copr enable errornointernet/quickshell
-    sudo dnf $noconfirm install quickshell-git
+    sudo dnf copr enable $noconfirm errornointernet/quickshell
+    sudo dnf install $noconfirm quickshell-git
 end
 
 function material_symbols_install --description 'Install Google Material Symbols fonts for current user'
@@ -390,7 +390,7 @@ end
 
 function shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
     # --- Dépendances build & runtime ---
-    set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel aubio
+    set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel aubio libsndfile-devel fftw-devel
     echo (set_color green)"==> Installing build dependencies"(set_color normal)
     sudo dnf install -y $pkgs; or return 1
 
@@ -403,7 +403,7 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l dest_cfg "$qsh_dir/caelestia"
     mkdir -p $qsh_dir; or return 1
 
-    # --- Clonage / mise à jour du dépôt shell ---
+    # --- Clonage / mise à jour ---
     if test -d "$dest_cfg/.git"
         echo (set_color green)"==> Updating Caelestia shell in $dest_cfg"(set_color normal)
         git -C $dest_cfg pull --ff-only; or return 1
@@ -427,25 +427,18 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         end
     end
 
-    # Flags via pkg-config (silencieux)
-    set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod)
-    set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod)
-    set -l cflags_aub  (pkg-config --silence-errors --cflags aubio)
-    set -l libs_aub    (pkg-config --silence-errors --libs   aubio)
+    # Récupère flags et les SPLIT en listes (évite '' et les gros arguments uniques)
+    set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod | string split ' ')
+    set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod | string split ' ')
+    set -l cflags_aub  (pkg-config --silence-errors --cflags aubio   | string split ' ')
+    set -l libs_aub    (pkg-config --silence-errors --libs   aubio   | string split ' ')
 
-    # Fallbacks si pkg-config est muet
-    if test -z "$libs_pipe"
+    # Fallbacks si pkg-config renvoie vide
+    if test (count $libs_pipe) -eq 0
         set libs_pipe -lpipewire-0.3
     end
-    # Pour aubio : ajouter les dépendances usuelles si vide/incomplet
-    set -l libs
-    set libs $libs $libs_pipe $libs_aub
-    if not contains -laubio $libs
-        # aubio et ses deps courantes sur Fedora
-        set libs $libs -laubio -lsndfile -lfftw3f -lm
-    end
 
-    # Détection des includes en LISTES (un -I = un élément)
+    # Includes additionnels si besoin
     set -l incs
     if test -f /usr/include/pipewire-0.3/pipewire/pipewire.h
         set incs $incs -I/usr/include/pipewire-0.3
@@ -460,52 +453,39 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         return 1
     end
 
-    # Diag
-    echo (set_color cyan)"[diag] Using PipeWire module: $pw_mod"(set_color normal)
-    echo (set_color cyan)"[diag] CFLAGS pipe  : $cflags_pipe"(set_color normal)
-    echo (set_color cyan)"[diag] CFLAGS aubio : $cflags_aub"(set_color normal)
-    echo (set_color cyan)"[diag] INCLUDES     : $incs"(set_color normal)
-    echo (set_color cyan)"[diag] LIBS         : $libs"(set_color normal)
-
-    # --- Build en LISTE d’arguments sûre ---
-    set -l build_root $XDG_CACHE_HOME
-    if test -z "$build_root"
-        set build_root "$HOME/.cache"
+    # Librairies agrégées
+    set -l libs $libs_pipe $libs_aub
+    # Ajoute aubio + deps si absents
+    if not contains -- -laubio $libs
+        set libs $libs -laubio
     end
-    mkdir -p $build_root; or return 1
-    set -l workdir (mktemp -d "$build_root/caelestia-bd.XXXXXX"); or return 1
-    set -l out "$workdir/beat_detector"
-
-    set -l cmd g++ -std=c++17 -Wall -Wextra
-    set cmd $cmd $cflags_pipe $cflags_aub $incs $src -o $out $libs
-
-    echo (set_color yellow)"[diag] argv (1 par ligne):"(set_color normal)
-    for a in $cmd
-        echo "  "(string escape -- $a)
+    if not contains -- -lsndfile $libs
+        set libs $libs -lsndfile
     end
+    if not contains -- -lfftw3f $libs
+        set libs $libs -lfftw3f
+    end
+    if not contains -- -lm $libs
+        set libs $libs -lm
+    end
+
+    # Dossier de build
+    set -l builddir (mktemp -d ~/.cache/caelestia-bd.XXXXXX)
+    set -l out "$builddir/beat_detector"
 
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
-    $cmd; or begin
+    # Compose l’invocation en LISTE (pas de quotes globales)
+    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs
+    or begin
         echo (set_color red)"ERROR: compilation/édition de liens échouée"(set_color normal)
-        echo "Vérifie :"
+        echo "Vérifie :"
         echo "  pkg-config --libs aubio        # doit contenir -laubio -lsndfile -lfftw3f -lm"
         echo "  ldconfig -p | grep -E 'aubio|sndfile|fftw3f'"
         return 1
     end
 
-    # --- Installation du binaire ---
-    set -l sys_dest "/usr/lib/caelestia/beat_detector"
-    echo (set_color green)"==> Installing beat_detector to $sys_dest"(set_color normal)
-    sudo install -D -m 0755 $out $sys_dest; or return 1
-
-    # Nettoyage
-    rm -rf "$workdir"
-
-    # --- Récapitulatif / Conseils ---
-    echo (set_color green)"==> Caelestia shell installée dans $dest_cfg"(set_color normal)
-    echo (set_color green)"==> beat_detector installé dans $sys_dest"(set_color normal)
-    echo "Astuce: si tu choisis un autre chemin que $sys_dest, exporte:"
-    echo "  set -Ux CAELESTIA_BD_PATH /chemin/vers/beat_detector"
+    echo (set_color green)"OK:"(set_color normal)" binaire -> $out"
+    echo "Tu peux le déplacer vers /usr/lib/caelestia/beat_detector si tu veux l'emplacement par défaut."
 end
 
 cli_install
