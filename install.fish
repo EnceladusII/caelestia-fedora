@@ -427,28 +427,34 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         end
     end
 
-    # Récupère flags et les SPLIT en listes (évite '' et les gros arguments uniques)
-    # Récupère et nettoie (trim + split -n = pas d’éléments vides)
+    # --- Flags via pkg-config (trim + split -n = pas d’éléments vides) ---
     set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod | string trim | string split -n ' ')
     set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod | string trim | string split -n ' ')
     set -l cflags_aub  (pkg-config --silence-errors --cflags aubio   | string trim | string split -n ' ')
     set -l libs_aub    (pkg-config --silence-errors --libs   aubio   | string trim | string split -n ' ')
 
-    # Garde-fou: si rien pour pipewire, force la lib
+    # --- Sanitization correcte (supprime tokens vides et '-l' orphelin) ---
+    function sanitize
+        for x in $argv
+            if test -n "$x"; and test "$x" != "-l"
+                echo $x
+            end
+        end
+    end
+    set -l cflags_pipe (sanitize $cflags_pipe)
+    set -l libs_pipe   (sanitize $libs_pipe)
+    set -l cflags_aub  (sanitize $cflags_aub)
+    set -l libs_aub    (sanitize $libs_aub)
+
+    # --- Garde-fous PipeWire ---
     if test (count $libs_pipe) -eq 0; or not contains -- -lpipewire-0.3 $libs_pipe
         set libs_pipe $libs_pipe -lpipewire-0.3
     end
-    # (optionnel) certains environnements nécessitent aussi -lspa-0.2 ; ajoute-le si manquant
     if not contains -- -lspa-0.2 $libs_pipe
         set libs_pipe $libs_pipe -lspa-0.2
     end
 
-    # Fallbacks si pkg-config renvoie vide
-    if test (count $libs_pipe) -eq 0
-        set libs_pipe -lpipewire-0.3
-    end
-
-    # Includes additionnels si besoin
+    # --- Includes additionnels si besoin ---
     set -l incs
     if test -f /usr/include/pipewire-0.3/pipewire/pipewire.h
         set incs $incs -I/usr/include/pipewire-0.3
@@ -463,41 +469,25 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         return 1
     end
 
-    # Purge tokens vides et '-l' orphelin (garde-fou)
-    function _sanitize --argument-names lst
-        for x in $$lst
-            if test -n "$x"; and test "$x" != "-l"
-                echo $x
-            end
-        end
+    # --- Garde-fous aubio (+ deps usuelles) ---
+    if not contains -- -laubio $libs_aub
+        set libs_aub $libs_aub -laubio
+    end
+    if not contains -- -lsndfile $libs_aub
+        set libs_aub $libs_aub -lsndfile
+    end
+    if not contains -- -lfftw3f $libs_aub
+        set libs_aub $libs_aub -lfftw3f
+    end
+    if not contains -- -lm $libs_aub
+        set libs_aub $libs_aub -lm
     end
 
-    set -l cflags_pipe (_sanitize cflags_pipe)
-    set -l libs_pipe   (_sanitize libs_pipe)
-    set -l cflags_aub  (_sanitize cflags_aub)
-    set -l libs_aub    (_sanitize libs_aub)
-
-    # Librairies agrégées
-    set -l libs $libs_pipe $libs_aub
-    # Ajoute aubio + deps si absents
-    if not contains -- -laubio $libs
-        set libs $libs -laubio
-    end
-    if not contains -- -lsndfile $libs
-        set libs $libs -lsndfile
-    end
-    if not contains -- -lfftw3f $libs
-        set libs $libs -lfftw3f
-    end
-    if not contains -- -lm $libs
-        set libs $libs -lm
-    end
-
-    # Dossier de build
+    # --- Dossier de build ---
     set -l builddir (mktemp -d ~/.cache/caelestia-bd.XXXXXX)
     set -l out "$builddir/beat_detector"
 
-    # Compose l’invocation en LISTE (pas de quotes globales)
+    # --- Compilation ---
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
     g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $incs $src -o $out $libs_pipe $libs_aub
     or begin
@@ -509,8 +499,9 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     end
 
     echo (set_color green)"OK:"(set_color normal)" binaire -> $out"
-    echo "Tu peux le déplacer vers /usr/lib/caelestia/beat_detector si tu veux l'emplacement par défaut."
+    echo "Tu peux le déplacer vers /usr/lib/caelestia/beat_detector (emplacement par défaut)."
 end
+
 
 cli_install
 log 'Caelestia CLI is Installed'
