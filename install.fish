@@ -387,10 +387,12 @@ function cli_install --description 'Build & install caelestia-cli from source'
 end
 
 function shell_install --description 'Install Caelestia shell into XDG config and build the beat detector'
+    # --- Dépendances build & runtime ---
     set -l pkgs git gcc-c++ pkgconf-pkg-config pipewire-devel aubio-devel aubio
     echo (set_color green)"==> Installing build dependencies"(set_color normal)
     sudo dnf install -y $pkgs; or return 1
 
+    # --- Répertoires ---
     set -l xdg_conf $XDG_CONFIG_HOME
     if test -z "$xdg_conf"
         set xdg_conf "$HOME/.config"
@@ -399,6 +401,7 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l dest_cfg "$qsh_dir/caelestia"
     mkdir -p $qsh_dir; or return 1
 
+    # --- Clonage / mise à jour du dépôt shell ---
     if test -d "$dest_cfg/.git"
         echo (set_color green)"==> Updating Caelestia shell in $dest_cfg"(set_color normal)
         git -C $dest_cfg pull --ff-only; or return 1
@@ -406,13 +409,15 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         echo (set_color green)"==> Cloning Caelestia shell to $dest_cfg"(set_color normal)
         git clone --depth=1 https://github.com/caelestia-dots/shell.git $dest_cfg; or return 1
     end
---
+
+    # --- Compilation du beat detector ---
     set -l src "$dest_cfg/assets/beat_detector.cpp"
     if not test -f "$src"
-        echo (set_color red)"ERROR: beat_detector.cpp not found: $src"(set_color normal)
+        echo (set_color red)"ERROR: beat_detector.cpp introuvable: $src"(set_color normal)
         return 1
     end
 
+    # Sélection du module PipeWire
     set -l pw_mod libpipewire-0.3
     if not pkg-config --exists $pw_mod
         if pkg-config --exists pipewire-0.3
@@ -420,18 +425,25 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         end
     end
 
+    # Flags via pkg-config (silencieux)
     set -l cflags_pipe (pkg-config --silence-errors --cflags $pw_mod)
     set -l libs_pipe   (pkg-config --silence-errors --libs   $pw_mod)
     set -l cflags_aub  (pkg-config --silence-errors --cflags aubio)
     set -l libs_aub    (pkg-config --silence-errors --libs   aubio)
 
+    # Fallbacks si pkg-config est muet
     if test -z "$libs_pipe"
         set libs_pipe -lpipewire-0.3
     end
-    if test -z "$libs_aub"
-        set libs_aub -laubio
+    # Pour aubio : ajouter les dépendances usuelles si vide/incomplet
+    set -l libs
+    set libs $libs $libs_pipe $libs_aub
+    if not contains -laubio $libs
+        # aubio et ses deps courantes sur Fedora
+        set libs $libs -laubio -lsndfile -lfftw3f -lm
     end
 
+    # Détection des includes en LISTES (un -I = un élément)
     set -l incs
     if test -f /usr/include/pipewire-0.3/pipewire/pipewire.h
         set incs $incs -I/usr/include/pipewire-0.3
@@ -442,30 +454,18 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         set incs $incs -I/usr/include/spa-0.2
     end
     if test (count $incs) -eq 0
-        echo (set_color red)"ERROR: Impossible to found pipewire/pipewire.h."(set_color normal)
+        echo (set_color red)"ERROR: Impossible de localiser pipewire/pipewire.h."(set_color normal)
         return 1
     end
 
-    function __clean_tokens --argument-names toks --inherit-variable toks
-        set -l out
-        for t in $toks
-            if test -n "$t"
-                if test "$t" != ":"
-                    set out $out $t
-                end
-            end
-        end
-        echo $out
-    end
-    set -l libs_clean (__clean_tokens $libs_pipe $libs_aub)
-    set -l cflags_clean (__clean_tokens $cflags_pipe $cflags_aub)
-
     # Diag
     echo (set_color cyan)"[diag] Using PipeWire module: $pw_mod"(set_color normal)
-    echo (set_color cyan)"[diag] CFLAGS clean : $cflags_clean"(set_color normal)
+    echo (set_color cyan)"[diag] CFLAGS pipe  : $cflags_pipe"(set_color normal)
+    echo (set_color cyan)"[diag] CFLAGS aubio : $cflags_aub"(set_color normal)
     echo (set_color cyan)"[diag] INCLUDES     : $incs"(set_color normal)
-    echo (set_color cyan)"[diag] LIBS clean   : $libs_clean"(set_color normal)
+    echo (set_color cyan)"[diag] LIBS         : $libs"(set_color normal)
 
+    # --- Build en LISTE d’arguments sûre ---
     set -l build_root $XDG_CACHE_HOME
     if test -z "$build_root"
         set build_root "$HOME/.cache"
@@ -475,7 +475,7 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l out "$workdir/beat_detector"
 
     set -l cmd g++ -std=c++17 -Wall -Wextra
-    set cmd $cmd $cflags_clean $incs $src -o $out $libs_clean
+    set cmd $cmd $cflags_pipe $cflags_aub $incs $src -o $out $libs
 
     echo (set_color yellow)"[diag] argv (1 par ligne):"(set_color normal)
     for a in $cmd
@@ -484,23 +484,26 @@ function shell_install --description 'Install Caelestia shell into XDG config an
 
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
     $cmd; or begin
-        echo (set_color red)"ERROR: compilomg/editing links failed"(set_color normal)
-        echo "Tips:"
-        echo "  - Check libpipewire-0.3.so* et libaubio.so* exists (ldconfig -p | grep -E 'pipewire|aubio')"
-        echo "  - If token ':' , pkg-config bug: filter function work"
+        echo (set_color red)"ERROR: compilation/édition de liens échouée"(set_color normal)
+        echo "Vérifie :"
+        echo "  pkg-config --libs aubio        # doit contenir -laubio -lsndfile -lfftw3f -lm"
+        echo "  ldconfig -p | grep -E 'aubio|sndfile|fftw3f'"
         return 1
     end
 
+    # --- Installation du binaire ---
     set -l sys_dest "/usr/lib/caelestia/beat_detector"
     echo (set_color green)"==> Installing beat_detector to $sys_dest"(set_color normal)
     sudo install -D -m 0755 $out $sys_dest; or return 1
 
+    # Nettoyage
     rm -rf "$workdir"
 
-    echo (set_color green)"==> Caelestia shell installed in $dest_cfg"(set_color normal)
-    echo (set_color green)"==> beat_detector installed in $sys_dest"(set_color normal)
-    echo "Tips: if other path than $sys_dest, export:"
-    echo "  set -Ux CAELESTIA_BD_PATH /path/to/beat_detector"
+    # --- Récapitulatif / Conseils ---
+    echo (set_color green)"==> Caelestia shell installée dans $dest_cfg"(set_color normal)
+    echo (set_color green)"==> beat_detector installé dans $sys_dest"(set_color normal)
+    echo "Astuce: si tu choisis un autre chemin que $sys_dest, exporte:"
+    echo "  set -Ux CAELESTIA_BD_PATH /chemin/vers/beat_detector"
 end
 
 cli_install
