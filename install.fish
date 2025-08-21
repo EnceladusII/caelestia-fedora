@@ -285,16 +285,27 @@ function app2unit_install --description 'Build & install app2unit (and xdg-termi
 end
 
 ensure_update
+log 'System up-to-date'
 ensure_tools
+log 'Installed dependencies packages'
 ensure_rpmfusion
+log 'RPM fusion installed'
 ensure_flatpak
+log 'flatpak activated'
 wl-screenrec_install
+log 'wl-screenrec installed'
 starship_install
+log 'starship installed'
 material_symbols_install
+log 'materialyou installed'
 fonts_install
+log 'fonts installed'
 cliphist_install
+log 'cliphist installed'
 hyprptools_install
+log 'Hyprland tools installed'
 app2unit_install
+log 'App2Unit compiled'
 
 log 'All pre-setup is OK...'
 
