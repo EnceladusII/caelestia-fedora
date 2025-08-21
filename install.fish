@@ -311,7 +311,6 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     end
     set -l qsh_dir "$xdg_conf/quickshell"
     set -l dest_cfg "$qsh_dir/caelestia"
-
     mkdir -p $qsh_dir; or return 1
 
     # --- Clonage / mise à jour du dépôt shell ---
@@ -330,26 +329,34 @@ function shell_install --description 'Install Caelestia shell into XDG config an
         return 1
     end
 
-    # Flags via pkg-config (robuste). Fallback minimal si pkg-config renvoie vide.
-    set -l cflags_pipe (pkg-config --cflags pipewire-0.3 ^/dev/null)
-    set -l libs_pipe   (pkg-config --libs   pipewire-0.3 ^/dev/null)
-    set -l cflags_aub  (pkg-config --cflags aubio ^/dev/null)
-    set -l libs_aub    (pkg-config --libs   aubio ^/dev/null)
+    # Vérifie explicitement la présence des modules pkg-config
+    for mod in libpipewire-0.3 aubio
+        if not pkg-config --exists $mod
+            echo (set_color red)"ERROR: pkg-config ne trouve pas le module '$mod'."(set_color normal)
+            echo "Astuce: le fichier .pc est fourni par 'pipewire-devel' et 'aubio-devel'."
+            echo "Essayez: rpm -ql pipewire-devel | grep \'\\.pc$\'  et  pkg-config --list-all | grep pipewire"
+            return 1
+        end
+    end
 
-    if test -z "$libs_pipe" -o -z "$libs_aub"
-        echo (set_color yellow)"WARN: pkg-config n'a pas retourné tous les flags; tentative avec valeurs par défaut"(set_color normal)
-        if test -z "$cflags_pipe"
-            set cflags_pipe "-I/usr/include/pipewire-0.3 -I/usr/include/spa-0.2"
-        end
-        if test -z "$cflags_aub"
-            set cflags_aub "-I/usr/include/aubio"
-        end
-        if test -z "$libs_pipe"
-            set libs_pipe "-lpipewire-0.3"
-        end
-        if test -z "$libs_aub"
-            set libs_aub "-laubio"
-        end
+    # Récupère les flags (silencieux)
+    set -l cflags_pipe (pkg-config --silence-errors --cflags libpipewire-0.3)
+    set -l libs_pipe   (pkg-config --silence-errors --libs   libpipewire-0.3)
+    set -l cflags_aub  (pkg-config --silence-errors --cflags aubio)
+    set -l libs_aub    (pkg-config --silence-errors --libs   aubio)
+
+    # Fallbacks défensifs (au cas où)
+    if test -z "$cflags_pipe"
+        set cflags_pipe "-I/usr/include/pipewire-0.3 -I/usr/include/spa-0.2"
+    end
+    if test -z "$cflags_aub"
+        set cflags_aub "-I/usr/include/aubio"
+    end
+    if test -z "$libs_pipe"
+        set libs_pipe "-lpipewire-0.3"
+    end
+    if test -z "$libs_aub"
+        set libs_aub "-laubio"
     end
 
     set -l build_root $XDG_CACHE_HOME
@@ -361,7 +368,8 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     set -l out "$workdir/beat_detector"
 
     echo (set_color green)"==> Compiling beat_detector"(set_color normal)
-    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub -o $out $src $libs_pipe $libs_aub; or begin
+    # Ordre: CFLAGS -> source -> -o -> LIBS
+    g++ -std=c++17 -Wall -Wextra $cflags_pipe $cflags_aub $src -o $out $libs_pipe $libs_aub; or begin
         echo (set_color red)"ERROR: compilation échouée"(set_color normal)
         return 1
     end
@@ -371,15 +379,17 @@ function shell_install --description 'Install Caelestia shell into XDG config an
     echo (set_color green)"==> Installing beat_detector to $sys_dest"(set_color normal)
     sudo install -D -m 0755 $out $sys_dest; or return 1
 
+    # Nettoyage
+    rm -rf "$workdir"
+
     # --- Récapitulatif / Conseils ---
     echo (set_color green)"==> Caelestia shell installée dans $dest_cfg"(set_color normal)
     echo (set_color green)"==> beat_detector installé dans $sys_dest"(set_color normal)
     echo "Astuce: si tu choisis un autre chemin que $sys_dest, exporte:"
     echo "  set -Ux CAELESTIA_BD_PATH /chemin/vers/beat_detector"
-
-    # Nettoyage optionnel:
-    # rm -rf $workdir
 end
+
+
 
 cli_install
 shell_install
