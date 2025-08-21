@@ -160,24 +160,20 @@ end
 function quickshell_install
     sudo dnf $noconfirm copr enable errorinternet/quickshell
     sudo dnf $noconfirm install quickshell-git
+end
 
 function material_symbols_install --description 'Install Google Material Symbols fonts for current user'
     set -l dest ~/.local/share/fonts/MaterialSymbols
     mkdir -p $dest
 
-    # Récupère l’archive npm sans polluer node_modules
     set -l tgz (npm pack material-symbols@latest | tail -n1)
 
-    # Décompresse l’archive
     tar -xzf $tgz
 
-    # Copie toutes les polices trouvées (.ttf/.otf) vers le dossier fonts utilisateur
     command find package -type f \( -name '*.ttf' -o -name '*.otf' \) -exec cp -v {} $dest \;
 
-    # Nettoyage
     rm -rf package $tgz
 
-    # Rafraîchir le cache des polices
     fc-cache -f
 
     echo "Material Symbols installées dans $dest"
