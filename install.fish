@@ -332,10 +332,10 @@ function cli_install --description 'Build & install caelestia-cli from source'
     # Détecter le site-packages cible et purger l’ancienne install (évite FileExistsError sur les fichiers)
     echo (set_color green)"==> Purging previous package from site-packages"(set_color normal)
     set -l purelib (python3 - <<'PY'
-import sysconfig
-print(sysconfig.get_path("purelib"))
-PY
-)
+        import sysconfig
+        print(sysconfig.get_path("purelib"))
+        PY
+    )
     # Sécurités : si ça échoue, fallback /usr/local ET /usr
     if test -z "$purelib"
         set purelib "/usr/local/lib/python"(python3 -c 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")')"/site-packages"
