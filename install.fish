@@ -157,9 +157,29 @@ function starship_install
     sudo dnf install $noconfirm starship
 end
 
-function material_symbols_install
-    sudo npm install material-symbols@latest
+function material_symbols_install --description 'Install Google Material Symbols fonts for current user'
+    set -l dest ~/.local/share/fonts/MaterialSymbols
+    mkdir -p $dest
+
+    # Récupère l’archive npm sans polluer node_modules
+    set -l tgz (npm pack material-symbols@latest | tail -n1)
+
+    # Décompresse l’archive
+    tar -xzf $tgz
+
+    # Copie toutes les polices trouvées (.ttf/.otf) vers le dossier fonts utilisateur
+    # (les polices sont sous package/fonts/… dans ce paquet)
+    command find package -type f \( -name '*.ttf' -o -name '*.otf' \) -exec cp -v {} $dest \;
+
+    # Nettoyage
+    rm -rf package $tgz
+
+    # Rafraîchir le cache des polices
+    fc-cache -f
+
+    echo "Material Symbols installées dans $dest"
 end
+
 
 function fonts_install
     mkdir -p ~/.local/share/fonts
@@ -173,54 +193,26 @@ function fonts_install
     fc-cache -fv
 end
 
-function wl-screenrec_install --description 'Install wl-screenrec with working FFmpeg pkg-config on Fedora'
+function wl-screenrec_install --description 'Build & install wl-screenrec (Fedora, pile actuelle)'
     set -l base_deps pkgconf-pkg-config gcc make
-    set -l tried_free 0
-    set -l tried_full 0
+    echo (set_color green)"==> Dépendances de build"(set_color normal)
+    sudo dnf install -y $base_deps ffmpeg-free-devel; or return 1
 
-    echo (set_color green)"==> Installing build deps"(set_color normal)
-    sudo dnf install -y $base_deps; or return 1
+    # Nettoyer env pour éviter de cacher les chemins système
+    set -e PKG_CONFIG_LIBDIR
+    set -e PKG_CONFIG_PATH
 
-    # Prefer full FFmpeg if RPM Fusion is enabled; otherwise try ffmpeg-free-devel
-    if sudo dnf -q list --installed rpmfusion-free-release &>/dev/null
-        echo (set_color green)"==> RPM Fusion detected; installing ffmpeg-devel"(set_color normal)
-        sudo dnf install -y ffmpeg-devel; or return 1
-        set tried_full 1
-    else
-        echo (set_color yellow)"==> RPM Fusion not detected; trying ffmpeg-free-devel"(set_color normal)
-        if sudo dnf install -y ffmpeg-free-devel
-            set tried_free 1
-        else
-            echo (set_color yellow)"==> Enabling RPM Fusion and trying ffmpeg-devel"(set_color normal)
-            sudo dnf install -y \
-              https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-(rpm -E %fedora).noarch.rpm \
-              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-(rpm -E %fedora).noarch.rpm; or return 1
-            sudo dnf install -y ffmpeg-devel; or return 1
-            set tried_full 1
-        end
-    end
-
-    # Export canonical pkg-config paths
-    set -x PKG_CONFIG_PATH /usr/lib64/pkgconfig:/usr/lib/pkgconfig
-
-    echo (set_color green)"==> Verifying pkg-config visibility for libavutil"(set_color normal)
+    echo (set_color green)"==> Vérification pkg-config (libavutil)"(set_color normal)
     if not pkg-config --exists libavutil
-        echo (set_color yellow)"pkg-config can't see libavutil; probing package that provides it..."(set_color normal)
-        dnf provides '*/libavutil.pc'
-        echo (set_color red)"ERROR: libavutil.pc not visible to pkg-config. Install the package shown above, then re-run."(set_color normal)
+        echo (set_color red)"ERREUR: pkg-config ne trouve pas libavutil. Vérifie que ffmpeg-free-devel est bien installé."(set_color normal)
+        echo "Astuce: rpm -ql ffmpeg-free-devel | grep pkgconfig/libavutil.pc"
         return 1
     end
 
-    echo (set_color green)"==> pkg-config OK:"(set_color normal) (pkg-config --modversion libavutil)
+    echo (set_color green)"==> Compilation wl-screenrec"(set_color normal)
+    cargo install --force wl-screenrec; or return 1
 
-    echo (set_color green)"==> Installing wl-screenrec via cargo"(set_color normal)
-    cargo install --force wl-screenrec; or begin
-        echo (set_color red)"Build failed. Printing cargo log hint..."(set_color normal)
-        echo "Try: RUST_BACKTRACE=1 cargo install --force wl-screenrec"
-        return 1
-    end
-
-    echo (set_color green)"==> Done. Test with: wl-screenrec --help"(set_color normal)
+    echo (set_color green)"OK. Lance: wl-screenrec --help"(set_color normal)
 end
 
 function cliphist_install
