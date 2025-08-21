@@ -445,15 +445,7 @@ function cli_install --description 'Build & install caelestia-cli from source'
     end
 
     # Test d’import de la dépendance clé
-    if not python3 - <<'PY'
-        import sys
-        try:
-            import materialyoucolor
-        except Exception as e:
-            print("MISSING: materialyoucolor ->", e, file=sys.stderr)
-            sys.exit(1)
-        print("OK: materialyoucolor present")
-        PY
+    if not python3 -c "import materialyoucolor" >/dev/null 2>&1
         echo (set_color red)"ERROR: Python runtime dependency missing (materialyoucolor)."(set_color normal)
         echo "Hint: sudo python3 -m pip install materialyoucolor --break-system-packages"
         return 1
