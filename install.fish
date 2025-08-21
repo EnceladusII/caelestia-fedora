@@ -167,7 +167,11 @@ function quickshell_install
 end
 
 function material_symbols_install --description 'Install Google Material Symbols fonts for current user'
-   sudo npm install material-symbols@latest
+   mkdir -p ~/.local/share/font
+
+   wget -O ~/.local/share/font/MaterialSymbolsRounded.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
+   wget -O ~/.local/share/font/MaterialSymbolsOutlined.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsOutlined%5BFILL,GRAD,opsz,wght%5D.ttf"
+   wget -O ~/.local/share/font/MaterialSymbolsSharp.ttf "https://github.com/google/material-design-icons/raw/master/variablefont/MaterialSymbolsSharp%5BFILL,GRAD,opsz,wght%5D.ttf"
 end
 
 function fonts_install
