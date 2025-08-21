@@ -116,14 +116,14 @@ end
 # Fedora Helpers:
 
 function ensure_update
-    sudo dnf upgrade $noconfirm
+    sudo dnf $noconfirm upgrade
 end
 
 function ensure_rpmfusion
     if ! rpm -q rpmfusion-free-release &>/dev/null
         log 'Enabling RPM Fusion (free & nonfree)...'
         set -l rel (rpm -E %fedora)
-        sudo dnf install $noconfirm \
+        sudo dnf $noconfirm install  \
             https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$rel.noarch.rpm \
             https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$rel.noarch.rpm
     end
@@ -142,7 +142,7 @@ end
 
 function ensure_tools
     # Base tools
-    sudo dnf install $noconfirm git curl tar unzip libnotify swappy grim wl-clipboard pkgconf-pkg-config ffmpeg-free-devel libavutil-free libavutil-free-devel slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo --allowerasing
+    sudo dnf $noconfirm install git curl tar unzip libnotify swappy grim wl-clipboard pkgconf-pkg-config ffmpeg-free-devel libavutil-free libavutil-free-devel slurp wf-recorder glib2 fuzzel python3-build python3-installer hatch python3-hatch-vcs libdrm-devel freeglut-devel clang ddcutil brightnessctl cava NetworkManager lm_sensors fish aubio pipewire glibc qt6-qtdeclarative libgcc libqalculate hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk gdm bluez bluez-tools inotify-tools wireplumber trash-cli foot fastfetch btop jq socat adw-gtk3-theme papirus-icon-theme qt5ct qt6ct rubygem-sass wayland-protocols-devel hyprland-protocols-devel hyprlang sdbus-cpp hyprwayland-scanner-devel ImageMagick pulseaudio-libs cargo go xdg-utils nodejs-npm cmake pkg-config pango cairo hyprutils libxkbcommon libjpeg-turbo --allowerasing
 end
 
 function dnf_install
@@ -153,9 +153,13 @@ function dnf_install
 end
 
 function starship_install
-    sudo dnf copr enable atim/starship
-    sudo dnf install $noconfirm starship
+    sudo dnf $noconfirm copr enable atim/starship
+    sudo dnf $noconfirm install  starship
 end
+
+function quickshell_install
+    sudo dnf $noconfirm copr enable errorinternet/quickshell
+    sudo dnf $noconfirm install quickshell-git
 
 function material_symbols_install --description 'Install Google Material Symbols fonts for current user'
     set -l dest ~/.local/share/fonts/MaterialSymbols
