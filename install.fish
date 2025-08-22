@@ -799,14 +799,4 @@ if set -q _flag_zen
     log 'Please install the CaelestiaFox extension from https://addons.mozilla.org/en-US/firefox/addon/caelestiafox if you have not already done so.'
 end
 
-# Generate scheme stuff if needed
-#if ! test -f $state/caelestia/scheme.json
-#    caelestia scheme set -n shadotheme
-#    sleep .5
-#    hyprctl reload
-#end
-
-# Start the shell
-#caelestia shell -d > /dev/null
-
 log 'Done!'
