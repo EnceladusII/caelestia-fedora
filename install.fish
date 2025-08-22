@@ -333,7 +333,7 @@ log 'Hyprland tools installed'
 app2unit_install
 log 'App2Unit compiled'
 
-source ~/.bashrc
+source $HOME/.bashrc
 sudo dnf update
 
 log 'All pre-setup is OK...'
@@ -649,82 +649,58 @@ log 'Caelestia SHELL is Installed'
 cd (dirname (status filename)) || exit 1
 
 # Install hypr* configs
-function confirm-overwrite
-    set -l target $argv[1]
-    if test -e $target
-        read -P "$target exist. Replace ? [y/N] " -l ans
-        string match -q -r '^(y|yes)$' -- (string lower $ans)
-        and return 0
-        or  return 1
-    end
-    return 0
-end
-
-function link_replace --description 'Create/replace symlink target -> dest'
-    set -l src  (realpath $argv[1])
-    set -l dest $argv[2]
-
-    mkdir -p (dirname -- $dest)
-    if test -e "$dest" -o -L "$dest"
-        rm -rf -- "$dest"
-    end
-    # -s: symlink, -f: force, -n: treat dest as normal file if symlink,
-    # -T: treat dest as a file (not directory) even if it exists
-    ln -sfnT -- "$src" "$dest"
-end
-
-# Hypr
-if confirm-overwrite "$config/hypr"
-    log 'Installing Hypr config...'
-    link_replace ./hypr "$config/hypr"
+if confirm-overwrite $config/hypr
+    log 'Installing hypr* configs...'
+    ln -s (realpath hypr) $config/hypr
+    hyprctl reload
 end
 
 # Starship
-if confirm-overwrite "$config/starship.toml"
+if confirm-overwrite $config/starship.toml
     log 'Installing starship config...'
-    link_replace ./starship.toml "$config/starship.toml"
+    ln -s (realpath starship.toml) $config/starship.toml
 end
 
 # Foot
-if confirm-overwrite "$config/foot"
+if confirm-overwrite $config/foot
     log 'Installing foot config...'
-    link_replace ./foot "$config/foot"
+    ln -s (realpath foot) $config/foot
 end
 
 # Fish
-if confirm-overwrite "$config/fish"
+if confirm-overwrite $config/fish
     log 'Installing fish config...'
-    link_replace ./fish "$config/fish"
+    ln -s (realpath fish) $config/fish
 end
 
 # Fastfetch
-if confirm-overwrite "$config/fastfetch"
+if confirm-overwrite $config/fastfetch
     log 'Installing fastfetch config...'
-    link_replace ./fastfetch "$config/fastfetch"
+    ln -s (realpath fastfetch) $config/fastfetch
 end
 
 # Uwsm
-if confirm-overwrite "$config/uwsm"
+if confirm-overwrite $config/uwsm
     log 'Installing uwsm config...'
-    link_replace ./uwsm "$config/uwsm"
+    ln -s (realpath uwsm) $config/uwsm
 end
 
 # Btop
-if confirm-overwrite "$config/btop"
+if confirm-overwrite $config/btop
     log 'Installing btop config...'
-    link_replace ./btop "$config/btop"
+    ln -s (realpath btop) $config/btop
 end
 
 # qt5ct
 if confirm-overwrite "$config/qt5ct"
     log 'Installing qt5ct config...'
-    link_replace ./qt5ct "$config/qt5ct"
+    ln -s (realpath qt5ct) $config/qt5ct
 end
 
 # qt6ct
 if confirm-overwrite "$config/qt6ct"
     log 'Installing qt6ct config...'
-    link_replace ./qt6ct "$config/qt6ct"
+    ln -s (realpath qt6ct) $config/qt6ct
 end
 
 # Install spicetify
