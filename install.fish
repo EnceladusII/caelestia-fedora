@@ -656,7 +656,6 @@ cd (dirname (status filename)) || exit 1
 if confirm-overwrite $config/hypr
     log 'Installing hypr* configs...'
     ln -s (realpath hypr) $config/hypr
-    hyprctl reload
 end
 
 # Starship
@@ -801,13 +800,13 @@ if set -q _flag_zen
 end
 
 # Generate scheme stuff if needed
-if ! test -f $state/caelestia/scheme.json
-    caelestia scheme set -n shadotheme
-    sleep .5
-    hyprctl reload
-end
+#if ! test -f $state/caelestia/scheme.json
+#    caelestia scheme set -n shadotheme
+#    sleep .5
+#    hyprctl reload
+#end
 
 # Start the shell
-caelestia shell -d > /dev/null
+#caelestia shell -d > /dev/null
 
 log 'Done!'
