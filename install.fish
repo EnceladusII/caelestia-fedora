@@ -249,6 +249,13 @@ end
 
 function cliphist_install
     go install go.senan.xyz/cliphist@latest
+    if test -d $HOME/go/bin
+        if type -q fish_add_path
+            fish_add_path -U $HOME/go/bin
+        else
+            set -U fish_user_paths $HOME/go/bin $fish_user_paths
+        end
+    end
 end
 
 function hyprptools_install
@@ -332,9 +339,6 @@ hyprptools_install
 log 'Hyprland tools installed'
 app2unit_install
 log 'App2Unit compiled'
-
-source $HOME/.bashrc
-sudo dnf update
 
 log 'All pre-setup is OK...'
 
