@@ -820,21 +820,14 @@ if set -q _flag_zen
     log 'Please install the CaelestiaFox extension from https://addons.mozilla.org/en-US/firefox/addon/caelestiafox if you have not already done so.'
 end
 
-# Assure-toi que $state est défini
-if not set -q state
-    set -l state ~/.local/state
-end
-mkdir -p $state/caelestia
-
-# Génère le scheme si besoin
-if not test -f $state/caelestia/scheme.json
+# Generate scheme stuff if needed
+if ! test -f $state/caelestia/scheme.json
     caelestia scheme set -n shadotheme
-    sleep 0.5
+    sleep .5
     hyprctl reload
 end
 
-# Démarre la shell Caelestia en arrière-plan
-caelestia shell -d >/dev/null 2>&1 &
-
+# Start the shell
+caelestia shell -d > /dev/null
 
 log 'Done!'
