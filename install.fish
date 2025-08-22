@@ -333,6 +333,9 @@ log 'Hyprland tools installed'
 app2unit_install
 log 'App2Unit compiled'
 
+source ~/.bashrc
+sudo dnf update
+
 log 'All pre-setup is OK...'
 
 # Install cli and shell
@@ -668,6 +671,12 @@ function link_replace --description 'Create/replace symlink target -> dest'
     # -s: symlink, -f: force, -n: treat dest as normal file if symlink,
     # -T: treat dest as a file (not directory) even if it exists
     ln -sfnT -- "$src" "$dest"
+end
+
+# Hypr
+if confirm-overwrite "$config/hypr"
+    log 'Installing Hypr config...'
+    link_replace ./hypr "$config/hypr"
 end
 
 # Starship
