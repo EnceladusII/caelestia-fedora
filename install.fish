@@ -359,7 +359,7 @@ function cli_install --description 'Build & install caelestia-cli from source'
     set -l workdir (mktemp -d "$build_root/caelestia-cli.XXXXXX"); or return 1
 
     echo (set_color green)"==> Cloning caelestia-cli source"(set_color normal)
-    git clone --depth=1 https://github.com/caelestia-dots/cli.git $workdir/cli; or return 1
+    git clone --depth=1 https://github.com/EnceladusII/caelestia-fedora-cli.git $workdir/cli; or return 1
     pushd $workdir/cli >/dev/null; or return 1
 
     echo (set_color green)"==> Building wheel"(set_color normal)
@@ -524,7 +524,7 @@ function shell_install --description 'Install Caelestia shell and build/install 
         return 1
     else
         echo (set_color green)"==> Cloning Caelestia shell to $dest_cfg"(set_color normal)
-        git clone --depth=1 https://github.com/caelestia-dots/shell.git $dest_cfg; or return 1
+        git clone --depth=1 https://github.com/EnceladusII/caelestia-fedora-shell.git $dest_cfg; or return 1
     end
 
     # --- Source file check ---
