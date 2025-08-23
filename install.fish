@@ -528,7 +528,7 @@ function shell_install --description 'Install Caelestia shell and build/install 
     end
 
     # --- Source file check ---
-    set -l src "$dest_cfg/assets/beat_detector.cpp"
+    set -l src "$dest_cfg/assets/cpp/beat_detector.cpp"
     if not test -f "$src"
         echo (set_color red)"ERROR: beat_detector.cpp not found: $src"(set_color normal)
         return 1
