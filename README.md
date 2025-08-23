@@ -1,7 +1,7 @@
 # caelestia-fedora
 
 This is the forked repo of the [caelestia dots](https://github.com/caelestia-dots/caelestia.git) for Fedora and contains the user configs for
-apps. This repo also includes an install script to install the entire dots.
+apps. This repo also includes an install script to install the entire dots. This fork is based on 2 freezed version of the caelestia CLI (https://github.com/EnceladusII/caelestia-fedora-cli.git) (2025-08-23 9pm54) and SHELL (https://github.com/EnceladusII/caelestia-fedora-shell.git) (2025-08-23 9pm54)
 
 ## Installation
 
@@ -13,7 +13,7 @@ Simply clone this repo and run the install script using (you need
 > move/remove the repo folder once you run the install script. If
 > you do, most apps will not behave properly and some (e.g. Hyprland)
 > will fail to start completely. I recommend cloning the repo to an external folder like
-> `~/.caelestia`.
+> `~/.local/share/caelestia`.
 
 The install script has some options for installing configs for some apps.
 
@@ -33,8 +33,10 @@ options:
 For example:
 
 ```sh
-git clone https://github.com/EnceladusII/caelestia-fedora.git ~/.caelestia
-~/.caelestia/install.fish
+sudo dnf install fish git npm
+sudo npm install -g sass
+git clone https://github.com/EnceladusII/caelestia-fedora.git ~/.local/share/caelestia
+~/.local/share/caelestia/install.fish
 ```
 
 ### Manual installation
@@ -70,7 +72,7 @@ Dependencies:
 -   ttf-jetbrains-mono-nerd (dl)
 
 Install all dependencies and follow the installation guides of the
-[shell](https://github.com/caelestia-dots/shell) and [cli](https://github.com/caelestia-dots/cli)
+[shell](https://github.com/EnceladusII/caelestia-fedora-shell.git) and [cli](https://github.com/EnceladusII/caelestia-fedora-cli.git)
 to install them.
 
 Then copy or symlink the `hypr`, `foot`, `fish`, `fastfetch`, `uwsm`, `btop`, `qt5ct` and `qt6ct` folders to the
@@ -123,8 +125,7 @@ Simply run `cd` into the repo directory and run `git pull` to update the configs
 > [!NOTE]
 > These dots do not contain a login manager (for now), so you must install a
 > login manager yourself unless you want to log in from a TTY. I recommend
-> [`greetd`](https://sr.ht/~kennylevinsen/greetd) with
-> [`tuigreet`](https://github.com/apognu/tuigreet), however you can use
+> [`ly`](https://github.com/fairyglade/ly.git), however you can use
 > any login manager you want.
 
 There aren't really any usage instructions... these are a set of dotfiles.
@@ -135,7 +136,7 @@ Here's a list of useful keybinds though:
 -   `Super` + `#` - switch to workspace `#`
 -   `Super` `Alt` + `#` - move window to workspace `#`
 -   `Super` + `T` - open terminal (foot)
--   `Super` + `W` - open browser (zen)
+-   `Super` + `W` - open browser (firefox)
 -   `Super` + `C` - open IDE (vscodium)
 -   `Super` + `S` - toggle special workspace or close current special workspace
 -   `Ctrl` `Alt` + `Delete` - open session menu
