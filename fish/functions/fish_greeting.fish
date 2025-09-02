@@ -1,10 +1,5 @@
 function fish_greeting
-    set -l LOGO ~/.config/fastfetch/saturn.txt
-
-    if test -f $LOGO
-        cat $LOGO
-        echo
-    end
-
-    fastfetch
+    echo -ne '\x1b[38;5;16m'  # Set colour to primary
+    set_color normal
+    fastfetch --key-padding-left 5
 end
