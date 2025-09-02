@@ -1,10 +1,10 @@
 function fish_greeting
-    echo -ne '\x1b[38;5;16m'  # Set colour to primary
-    echo '     ______           __          __  _       '
-    echo '    / ____/___ ____  / /__  _____/ /_(_)___ _ '
-    echo '   / /   / __ `/ _ \/ / _ \/ ___/ __/ / __ `/ '
-    echo '  / /___/ /_/ /  __/ /  __(__  ) /_/ / /_/ /  '
-    echo '  \____/\__,_/\___/_/\___/____/\__/_/\__,_/   '
-    set_color normal
-    fastfetch --key-padding-left 5
+    set -l LOGO ~/.config/fastfetch/saturn.txt
+    set -l PAD 2
+
+    if test -f $LOGO
+        fastfetch --logo $LOGO --logo-padding $PAD
+    else
+        fastfetch
+    end
 end
