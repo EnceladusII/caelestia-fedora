@@ -3,7 +3,7 @@ function fish_greeting
     set -l PAD 2
 
     if test -f $LOGO
-        fastfetch --logo $LOGO --logo-type ascii --logo-padding $PAD
+        fastfetch --logo $LOGO --logo-padding $PAD
     else
         fastfetch
     end
