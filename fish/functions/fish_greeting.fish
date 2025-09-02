@@ -1,3 +1,10 @@
 function fish_greeting
-    fastfetch --logo ~/.config/fastfetch/saturn.txt --logo-padding 2
+    set -l LOGO ~/.config/fastfetch/saturn.txt
+
+    if test -f $LOGO
+        cat $LOGO
+        echo
+    end
+
+    fastfetch
 end
