@@ -656,6 +656,7 @@ cd (dirname (status filename)) || exit 1
 if confirm-overwrite $config/hypr
     log 'Installing hypr* configs...'
     ln -s (realpath hypr) $config/hypr
+    chmod u+x $config/hypr/scripts/wsaction.fish
 end
 
 # Starship

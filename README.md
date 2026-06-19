@@ -1,41 +1,40 @@
-# caelestia-fedora
+# caelestia
 
-This is the forked repo of the [caelestia dots](https://github.com/caelestia-dots/caelestia.git) for Fedora and contains the user configs for
-apps. This repo also includes an install script to install the entire dots. This fork is based on 2 freezed version of the caelestia CLI (https://github.com/EnceladusII/caelestia-fedora-cli.git) (2025-08-23 9pm54) and SHELL (https://github.com/EnceladusII/caelestia-fedora-shell.git) (2025-08-23 9pm54)
+This is the main repo of the caelestia dots and contains the user configs for
+apps. This repo also includes an install script to install the entire dots.
 
 ## Installation
 
-Simply clone this repo and run the install script using (you need
+Simply clone this repo and run the install script (you need
 [`fish`](https://github.com/fish-shell/fish-shell) installed).
 
 > [!WARNING]
 > The install script symlinks all configs into place, so you CANNOT
 > move/remove the repo folder once you run the install script. If
 > you do, most apps will not behave properly and some (e.g. Hyprland)
-> will fail to start completely. I recommend cloning the repo to an external folder like
+> will fail to start completely. I recommend cloning the repo to
 > `~/.local/share/caelestia`.
 
 The install script has some options for installing configs for some apps.
 
 ```
 $ ./install.fish -h
-usage: ./install.sh [-h] [--noconfirm] [--spotify] [--vscode] [--discord] [--paru]
+usage: ./install.sh [-h] [--noconfirm] [--spotify] [--vscode] [--discord] [--aur-helper]
 
 options:
   -h, --help                  show this help message and exit
   --noconfirm                 do not confirm package installation
-  --spotify=[spotify|deezer]  install Spotify (Spicetify) (or deezer-desktop)
+  --spotify                   install Spotify (Spicetify)
   --vscode=[codium|code]      install VSCodium (or VSCode)
-  --discord=[discord|vesktop] install Discord (OpenAsar + Equicord) (or vektop)
+  --discord                   install Discord (OpenAsar + Equicord)
   --zen                       install Zen browser
+  --aur-helper=[yay|paru]     the AUR helper to use
 ```
 
 For example:
 
 ```sh
-sudo dnf install fish git npm
-sudo npm install -g sass
-git clone https://github.com/EnceladusII/caelestia-fedora.git ~/.local/share/caelestia
+git clone https://github.com/caelestia-dots/caelestia.git ~/.local/share/caelestia
 ~/.local/share/caelestia/install.fish
 ```
 
@@ -46,36 +45,35 @@ Dependencies:
 -   hyprland
 -   xdg-desktop-portal-hyprland
 -   xdg-desktop-portal-gtk
--   hyprpicker (copr)
--   hypridle (copr)
+-   hyprpicker
 -   wl-clipboard
--   cliphist (go)
--   bluez
--   bluez-tools
+-   cliphist
 -   inotify-tools
--   app2unit (compile)
+-   app2unit
 -   wireplumber
 -   trash-cli
 -   foot
 -   fish
 -   fastfetch
--   starship (copr)
+-   starship
 -   btop
 -   jq
--   socat
--   ImageMagick
--   curl
--   adw-gtk3-theme
+-   eza
+-   adw-gtk-theme
 -   papirus-icon-theme
--   qt5ct
--   qt6ct
--   ttf-jetbrains-mono-nerd (dl)
+-   qtengine-git
+-   ttf-jetbrains-mono-nerd
 
 Install all dependencies and follow the installation guides of the
-[shell](https://github.com/EnceladusII/caelestia-fedora-shell.git) and [cli](https://github.com/EnceladusII/caelestia-fedora-cli.git)
+[shell](https://github.com/caelestia-dots/shell) and [cli](https://github.com/caelestia-dots/cli)
 to install them.
 
-Then copy or symlink the `hypr`, `foot`, `fish`, `fastfetch`, `uwsm`, `btop`, `qt5ct` and `qt6ct` folders to the
+> [!TIP]
+> If on Arch or an Arch-based distro, there is a meta package available [in this repository](PKGBUILD)
+> that pulls in all dependencies. It can be installed through the install script, makepkg/pacman, yay,
+> paru, or your preferred AUR helper.
+
+Then copy or symlink the `hypr`, `foot`, `fish`, `fastfetch`, `uwsm` and `btop` folders to the
 `$XDG_CONFIG_HOME` (usually `~/.config`) directory. e.g. `hypr -> ~/.config/hypr`.
 Copy `starship.toml` to `$XDG_CONFIG_HOME/starship.toml`.
 
@@ -118,14 +116,15 @@ Finally, install the CaelestiaFox extension from [here](https://addons.mozilla.o
 
 ## Updating
 
-Simply run `cd` into the repo directory and run `git pull` to update the configs.
+Simply run `yay` to update the AUR packages, then `cd` into the repo directory and run `git pull` to update the configs.
 
 ## Usage
 
 > [!NOTE]
 > These dots do not contain a login manager (for now), so you must install a
 > login manager yourself unless you want to log in from a TTY. I recommend
-> [`ly`](https://github.com/fairyglade/ly.git), however you can use
+> [`greetd`](https://sr.ht/~kennylevinsen/greetd) with
+> [`tuigreet`](https://github.com/apognu/tuigreet), however you can use
 > any login manager you want.
 
 There aren't really any usage instructions... these are a set of dotfiles.
@@ -136,7 +135,7 @@ Here's a list of useful keybinds though:
 -   `Super` + `#` - switch to workspace `#`
 -   `Super` `Alt` + `#` - move window to workspace `#`
 -   `Super` + `T` - open terminal (foot)
--   `Super` + `W` - open browser (firefox)
+-   `Super` + `W` - open browser (zen)
 -   `Super` + `C` - open IDE (vscodium)
 -   `Super` + `S` - toggle special workspace or close current special workspace
 -   `Ctrl` `Alt` + `Delete` - open session menu
